@@ -1,0 +1,25 @@
+{% extends "templates/web.html" %}
+
+{% block page_content %}
+<div class="container mt-5" style="max-width: 800px">
+  <h3>Resume AI Chat</h3>
+
+  <div id="chatBox"
+       style="border:1px solid #ddd;
+              padding:15px;
+              height:400px;
+              overflow-y:auto;
+              margin-bottom:15px;
+              background:#fafafa">
+  </div>
+
+  <div class="input-group">
+    <input type="text"
+           id="questionInput"
+           class="form-control"
+           placeholder="Ask about candidates..."
+           onkeypress="if(event.key==='Enter'){sendQuestion();}">
+    <button class="btn btn-primary" onclick="sendQuestion()">Send</button>
+  </div>
+</div>
+{% endblock %}

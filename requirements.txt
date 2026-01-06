@@ -1,0 +1,5 @@
+pdfplumber
+python-docx
+requests
+sentence-transformers
+faiss-cpu

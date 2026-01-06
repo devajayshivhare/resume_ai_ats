@@ -5,3 +5,14 @@
 tags
 node_modules
 __pycache__
+
+# AI runtime files
+faiss.index
+metadata.json
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Logs
+*.log

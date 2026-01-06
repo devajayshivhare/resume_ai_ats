@@ -1,0 +1,32 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="resume-upload.js"></script>
+</head>
+<body>
+{% extends "templates/web.html" %}
+
+{% block page_content %}
+
+    <div class="container mt-5">
+  <h3>Upload Resume</h3>
+
+  <div class="form-group">
+    <input type="file" id="resumeFile" class="form-control" />
+  </div>
+
+  <button class="btn btn-primary mt-3" onclick="uploadResume()">
+    Parse Resume
+  </button>
+
+  <pre id="output" class="mt-4"></pre>
+
+  {% endblock %}
+</div>
+</body>
+</html>
