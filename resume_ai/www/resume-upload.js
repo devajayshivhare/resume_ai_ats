@@ -13,7 +13,9 @@ function uploadResume() {
     output.innerText = "Parsing resume...";
 
     fetch(
-        "https://cnd.octavision.in/api/method/resume_ai.parse_resume.parse_resume",
+        // "https://cnd.octavision.in/api/method/resume_ai.parse_resume.parse_resume",
+        // "https://cnd.octavision.in/api/method/resume_ai.api.resume.parse_resume.parse_resume",
+        "https://cnd.octavision.in/api/method/resume_ai.api.resume.resume_parse.resume_parse",
         {
             method: "POST",
             headers: {

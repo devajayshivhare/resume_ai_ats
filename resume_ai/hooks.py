@@ -145,6 +145,13 @@ app_license = "mit"
 # 	}
 # }
 
+doc_events = {
+    "Resume": {
+        "after_insert": "resume_ai.api.resume.resume.resume",
+        # "validate": "resume_ai.api.resume.resume.resume",
+    }
+}
+
 # Scheduled Tasks
 # ---------------
 

@@ -1,8 +1,61 @@
 {% extends "templates/web.html" %}
 
 {% block page_content %}
-<div class="container mt-5" style="max-width: 800px">
+<div class="container mt-5" style="max-width: 1024px">
   <h3>Resume AI Chat</h3>
+
+  <div id="chat-filters" style="margin-bottom:20px; padding:10px; border:1px solid #ddd;">
+  <h4>Profile Filters</h4>
+
+  <!-- Skills -->
+  <label>Skills</label><br>
+  <select id="filter-skills" multiple style="width:100%;">
+    <option value="Python">Python</option>
+    <option value="JavaScript">JavaScript</option>
+    <option value="React">React</option>
+    <option value="Jira">Jira</option>
+    <option value="Frappe">Frappe</option>
+    <option value="Kubernetes">Kubernetes</option>
+    <option value="Solidity">Solidity</option>
+  </select>
+
+  <br><br>
+
+  <!-- Experience -->
+  <label>Experience (Years)</label><br>
+  <input type="number" id="min-exp" placeholder="Min" style="width:80px;">
+  -
+  <input type="number" id="max-exp" placeholder="Max" style="width:80px;">
+
+  <br><br>
+
+  <!-- Status -->
+  <label>Status</label><br>
+  <select id="filter-status">
+    <option value="">Any</option>
+    <option value="New">New</option>
+    <option value="Shortlisted">Shortlisted</option>
+    <option value="Rejected">Rejected</option>
+  </select>
+
+  <br><br>
+
+  <div style="margin-bottom:10px; padding:8px; border:1px solid #ddd;">
+  <b>Response Mode:</b>
+  <label style="margin-left:10px;">
+    <input type="radio" name="responseMode" value="text" checked>
+    Explanation
+  </label>
+  <label style="margin-left:10px;">
+    <input type="radio" name="responseMode" value="table">
+    Table (Contact View)
+  </label>
+</div>
+
+
+  <button onclick="applyFilters()">Apply Filters</button>
+</div>
+
 
   <div id="chatBox"
        style="border:1px solid #ddd;
