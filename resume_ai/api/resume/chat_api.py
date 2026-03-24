@@ -5,62 +5,15 @@ from resume_ai.api.resume.embedder import embed_texts
 from resume_ai.api.resume.vector_store import search_similar
 from resume_ai.api.resume.gemini import get_gemini
 
-# CHAT_PROMPT = """
+def chat_with_llm(context, question):
+    model = get_gemini()
+
+#     prompt = f"""
 # You are an AI recruiter assistant.
 
 # Answer the user's question using ONLY the resume information provided below.
 # If the answer is not found in the resumes, say:
 # "Not found in the uploaded resumes."
-
-# Resume Data:
-# {context}
-
-# User Question:
-# {question}
-
-# """
-
-
-# def chat_with_llm(context, question):
-#     prompt = CHAT_PROMPT.format(
-#         context=context,
-#         question=question
-#     )
-
-#     payload = {
-#         "model": "llama3",
-#         "prompt": prompt,
-#         "stream": False
-#     }
-
-#     res = requests.post(
-#         "http://localhost:11434/api/generate",
-#         json=payload,
-#         timeout=120
-#     )
-
-#     return res.json().get("response", "").strip()
-
-def chat_with_llm(context, question):
-    model = get_gemini()
-
-    prompt = f"""
-You are an AI recruiter assistant.
-
-Answer the user's question using ONLY the resume information provided below.
-If the answer is not found in the resumes, say:
-"Not found in the uploaded resumes."
-
-Context:
-{context}
-
-Question:
-{question}
-"""
-#     prompt = f"""
-# You are a hiring assistant.
-
-# Only answer using the context below.
 
 # Context:
 # {context}
@@ -68,377 +21,48 @@ Question:
 # Question:
 # {question}
 # """
+    prompt = f"""
+You are an AI recruiter assistant. You help recruiters find and evaluate candidates based on their resumes.
 
+You can answer questions about:
+- Candidate skills and experience
+- Education and qualifications  
+- Work history and roles
+- Comparing candidates
+- Answer ONLY questions relevant to recruitment decisions (skills, experience, education)
+- Do NOT volunteer candidate personal details (email, phone, address) unless explicitly asked
+- Do NOT reveal candidate names unless directly asked about a specific person
+- If asked for contact details, say: "Please access candidate contact info through the official profile page"
+- If the answer is not found in the resumes, say: "Not found in the uploaded resumes."
+
+If the question is not related to the resume data provided, politely explain what types of questions you can answer.
+If the answer is not found in the resumes, say: "Not found in the uploaded resumes."
+
+Context:
+{context}
+
+Question:
+{question}
+"""
     result = model.generate_content(prompt)
     return result.text.strip()
-
-
-# @frappe.whitelist(allow_guest=True)
-# def chat_query(question=None):
-#     try:
-#         if not question:
-#             return {
-#                 "success": False,
-#                 "error": "Question is required"
-#             }
-
-#         from resume_ai.api.resume.embedder import embed_texts
-#         from resume_ai.api.resume.vector_store import search_similar
-        
-
-#         query_vector = embed_texts([question])[0]
-#         matches = search_similar(query_vector, top_k=5)
-
-#         if not matches:
-#             return {
-#                 "success": True,
-#                 "answer": "Not found in the uploaded resumes.",
-#                 "sources": []
-#             }
-
-#         # fetch Resume Chunk text
-#         chunk_ids = [m["resume_chunk"] for m in matches]
-
-#         chunks = frappe.get_all(
-#             "Resume Chunk",
-#             filters={"name": ["in", chunk_ids]},
-#             fields=["chunk_text", "candidate"]
-#         )
-
-#         context = "\n\n".join(c["chunk_text"] for c in chunks)
-
-#         answer = chat_with_llm(context, question)
-
-#         return {
-#             "success": True,
-#             "answer": answer,
-#             "sources": chunks
-#         }
-
-#     except Exception as e:
-#         frappe.log_error(frappe.get_traceback(), "Chat Query Error")
-#         return {
-#             "success": False,
-#             "error": str(e)
-#         }
-
-
-# import frappe
-# import json
-# from resume_ai.api.resume.embedder import embed_texts
-# from resume_ai.api.resume.vector_store import search_similar
-# from resume_ai.api.resume.llm import chat_with_llm   # adjust import if your function lives elsewhere
-
-
-# @frappe.whitelist(allow_guest=True)
-# def chat_query(question=None, filters=None):
-#     """
-#     Profile-based Resume Chat API
-
-#     Input JSON:
-#     {
-#       "question": "Who has Jira experience?",
-#       "filters": {
-#         "skills": ["Jira", "Python"],
-#         "min_experience": 3,
-#         "max_experience": 6,
-#         "status": "Shortlisted"
-#       }
-#     }
-#     """
-
-#     try:
-#         # -----------------------------
-#         # 1️⃣ Validate input
-#         # -----------------------------
-#         if not question:
-#             return {
-#                 "success": False,
-#                 "error": "Question is required"
-#             }
-
-#         # Frappe may pass filters as JSON string
-#         if isinstance(filters, str):
-#             filters = json.loads(filters)
-
-#         filters = filters or {}
-
-#         # -----------------------------
-#         # 2️⃣ Fetch candidates using structured filters
-#         # -----------------------------
-#         candidate_filters = {}
-
-#         if filters.get("status"):
-#             candidate_filters["status"] = filters["status"]
-
-#         candidates = frappe.get_all(
-#             "Candidate",
-#             filters=candidate_filters,
-#             fields=["name", "skills", "experience_years"]
-#         )
-
-#         # -----------------------------
-#         # 3️⃣ Apply skill + experience filtering
-#         # -----------------------------
-#         filtered_candidate_ids = []
-
-#         for c in candidates:
-#             # ---- Skills filter ----
-#             if filters.get("skills"):
-#                 candidate_skills = [
-#                     s.strip().lower()
-#                     for s in (c.skills or "").split(",")
-#                     if s.strip()
-#                 ]
-
-#                 if not all(
-#                     skill.lower() in candidate_skills
-#                     for skill in filters["skills"]
-#                 ):
-#                     continue
-
-#             # ---- Experience filter ----
-#             exp = c.experience_years or 0
-
-#             if filters.get("min_experience") is not None:
-#                 if exp < filters["min_experience"]:
-#                     continue
-
-#             if filters.get("max_experience") is not None:
-#                 if exp > filters["max_experience"]:
-#                     continue
-
-#             filtered_candidate_ids.append(c.name)
-
-#         # -----------------------------
-#         # 4️⃣ No matching profiles
-#         # -----------------------------
-#         if not filtered_candidate_ids:
-#             return {
-#                 "success": True,
-#                 "answer": "No candidates match the selected profile filters.",
-#                 "sources": []
-#             }
-
-#         # -----------------------------
-#         # 5️⃣ Vector search (FAISS)
-#         # -----------------------------
-#         query_vector = embed_texts([question])[0]
-#         matches = search_similar(query_vector, top_k=10)
-
-#         # Restrict FAISS results to filtered candidates
-#         matches = [
-#             m for m in matches
-#             if m.get("candidate_id") in filtered_candidate_ids
-#         ][:5]
-
-#         if not matches:
-#             return {
-#                 "success": True,
-#                 "answer": "No relevant information found in the selected profiles.",
-#                 "sources": []
-#             }
-
-#         # -----------------------------
-#         # 6️⃣ Fetch Resume Chunks from Frappe
-#         # -----------------------------
-#         chunk_ids = [m["resume_chunk"] for m in matches]
-
-#         chunks = frappe.get_all(
-#             "Resume Chunk",
-#             filters={"name": ["in", chunk_ids]},
-#             fields=["chunk_text", "candidate"]
-#         )
-
-#         # context = "\n\n".join(c["chunk_text"] for c in chunks)
-        
-#         # context = "\n\n".join(
-#         # f"Candidate: {c['candidate']}\n{c['chunk_text']}"
-#         # for c in chunks
-#         # )
-#         context = "\n\n".join(
-#         f"Candidate: {candidate_map.get(c['candidate'], c['candidate'])}\n{c['chunk_text']}"
-#         for c in chunks
-#         )
-        
-#         # 🔁 Deduplicate sources by candidate
-#         unique_sources = {}
-#         for c in chunks:
-#             unique_sources[c["candidate"]] = {
-#                 "candidate": candidate_map.get(c["candidate"], c["candidate"])
-#             }
-
-#         sources = list(unique_sources.values())
-
-#         # -----------------------------
-#         # 7️⃣ Ask LLM (grounded)
-#         # -----------------------------
-#         answer = chat_with_llm(context, question)
-
-#         return {
-#             "success": True,
-#             "answer": answer,
-#             "sources": sources
-#         }
-
-#     except Exception as e:
-#         frappe.log_error(frappe.get_traceback(), "Profile Based Chat Error")
-#         return {
-#             "success": False,
-#             "error": str(e)
-#         }
-
-# @frappe.whitelist(allow_guest=True)
-# def chat_query(question=None, filters=None):
-#     try:
-#         # -----------------------------
-#         # 0️⃣ Candidate map (DEFINE FIRST – NEVER FAILS)
-#         # -----------------------------
-#         candidate_map = {
-#             c.name: c.full_name
-#             for c in frappe.get_all("Candidate", fields=["name", "full_name"])
-#         }
-
-#         # -----------------------------
-#         # 1️⃣ Validate input
-#         # -----------------------------
-#         if not question:
-#             return {
-#                 "success": False,
-#                 "error": "Question is required"
-#             }
-
-#         if isinstance(filters, str):
-#             filters = json.loads(filters)
-
-#         filters = filters or {}
-
-#         # -----------------------------
-#         # 2️⃣ Fetch candidates (structured filtering)
-#         # -----------------------------
-#         candidate_filters = {}
-
-#         if filters.get("status") and filters["status"] != "Any":
-#             candidate_filters["status"] = filters["status"]
-
-#         candidates = frappe.get_all(
-#             "Candidate",
-#             filters=candidate_filters,
-#             fields=["name", "skills", "experience_years"]
-#         )
-
-#         # -----------------------------
-#         # 3️⃣ Apply skill + experience filtering
-#         # -----------------------------
-#         filtered_candidate_ids = []
-
-#         for c in candidates:
-#             # Skills (ANY match)
-#             if filters.get("skills"):
-#                 candidate_skills = [
-#                     s.strip().lower()
-#                     for s in (c.skills or "").split(",")
-#                 ]
-
-#                 if not any(
-#                     skill.lower() in candidate_skills
-#                     for skill in filters["skills"]
-#                 ):
-#                     continue
-
-#             # Experience (only if exists)
-#             exp = c.experience_years
-#             if exp is not None:
-#                 if filters.get("min_experience") is not None and exp < filters["min_experience"]:
-#                     continue
-#                 if filters.get("max_experience") is not None and exp > filters["max_experience"]:
-#                     continue
-
-#             filtered_candidate_ids.append(c.name)
-
-#         if not filtered_candidate_ids:
-#             return {
-#                 "success": True,
-#                 "answer": "No candidates match the selected profile filters.",
-#                 "sources": []
-#             }
-
-#         # -----------------------------
-#         # 4️⃣ Vector search
-#         # -----------------------------
-#         query_vector = embed_texts([question])[0]
-#         matches = search_similar(query_vector, top_k=10)
-
-#         matches = [
-#             m for m in matches
-#             if m.get("candidate_id") in filtered_candidate_ids
-#         ][:5]
-
-#         if not matches:
-#             return {
-#                 "success": True,
-#                 "answer": "No relevant information found in the selected profiles.",
-#                 "sources": []
-#             }
-
-#         # -----------------------------
-#         # 5️⃣ Fetch resume chunks
-#         # -----------------------------
-#         chunk_ids = [m["resume_chunk"] for m in matches]
-
-#         chunks = frappe.get_all(
-#             "Resume Chunk",
-#             filters={"name": ["in", chunk_ids]},
-#             fields=["chunk_text", "candidate"]
-#         )
-
-#         # -----------------------------
-#         # 6️⃣ Build grounded context (NO [Name] EVER)
-#         # -----------------------------
-#         context = "\n\n".join(
-#             f"Candidate: {candidate_map.get(c['candidate'], c['candidate'])}\n{c['chunk_text']}"
-#             for c in chunks
-#         )
-
-#         # -----------------------------
-#         # 7️⃣ Deduplicate sources
-#         # -----------------------------
-#         unique_sources = {}
-#         for c in chunks:
-#             unique_sources[c["candidate"]] = {
-#                 "candidate": candidate_map.get(c["candidate"], c["candidate"])
-#             }
-
-#         sources = list(unique_sources.values())
-
-#         # -----------------------------
-#         # 8️⃣ Ask LLM
-#         # -----------------------------
-#         answer = chat_with_llm(context, question)
-
-#         return {
-#             "success": True,
-#             "answer": answer,
-#             "sources": sources
-#         }
-
-#     except Exception as e:
-#         frappe.log_error(frappe.get_traceback(), "Chat Query Error")
-#         return {
-#             "success": False,
-#             "error": str(e)
-#         }
-
 
 import frappe
 import json
 from resume_ai.api.resume.embedder import embed_texts
 from resume_ai.api.resume.vector_store import search_similar
-# from resume_ai.api.resume.llm import chat_with_llm
-
 
 @frappe.whitelist(allow_guest=True)
 def chat_query(question=None, filters=None, response_format="text"):
+    # Only allow recruiters/admins
+    # if frappe.session.user == "Guest":
+    #     frappe.throw("Authentication required", frappe.AuthenticationError)
+    
+    # allowed_roles = ["System Manager", "Recruiter"]  # add your recruiter role
+    # user_roles = frappe.get_roles(frappe.session.user)
+    
+    # if not any(role in user_roles for role in allowed_roles):
+    #     frappe.throw("Not permitted", frappe.PermissionError)
     try:
         
         # -----------------------------
@@ -466,62 +90,148 @@ def chat_query(question=None, filters=None, response_format="text"):
         if filters.get("status") and filters["status"] != "Any":
             candidate_filters["status"] = filters["status"]
 
-        candidates = frappe.get_all(
-            "Candidate",
-            filters=candidate_filters,
-            fields=["name", "full_name", "email", "phone", "skills", "experience_years"]
-        )
-
+        # candidates = frappe.get_all(
+        #     # "Candidate",
+        #     "Profile",
+        #     filters=candidate_filters,
+        #     # fields=["name", "first_name", "email", "phone", "skills", "experience_years"]
+        #     fields=["*"]
+        # )
+        
+        # frappe.log_error(f"Fetched {len(candidates)} candidates with filters: {candidate_filters}", "Chat API Debug")   
+        # frappe.log_error(title="Chat API Debug", message=f"Candidate data: {candidates}")  # Log first 5 candidates for debugging
         # -----------------------------
         # 3️⃣ Apply skill & experience filtering
         # -----------------------------
-        filtered_candidates = []
+        # filtered_candidates = []
 
-        for c in candidates:
-            # Skill filter (ANY match)
-            if filters.get("skills"):
-                candidate_skills = [
-                    s.strip().lower()
-                    for s in (c.skills or "").split(",")
-                ]
+        # for c in candidates:
+        #     # Skill filter (ANY match)
+        #     if filters.get("skills"):
+        #         candidate_skills = [
+        #             s.strip().lower()
+        #             for s in (c.skills or "").split(",")
+        #         ]
 
-                if not any(
-                    skill.lower() in candidate_skills
-                    for skill in filters["skills"]
-                ):
-                    continue
+        #         if not any(
+        #             skill.lower() in candidate_skills
+        #             for skill in filters["skills"]
+        #         ):
+        #             continue
 
-            # Experience filter (only if exists)
-            exp = c.experience_years
-            if exp is not None:
-                if filters.get("min_experience") is not None and exp < filters["min_experience"]:
-                    continue
-                if filters.get("max_experience") is not None and exp > filters["max_experience"]:
-                    continue
+        #     # Experience filter (only if exists)
+        #     exp = c.experience_years
+        #     if exp is not None:
+        #         if filters.get("min_experience") is not None and exp < filters["min_experience"]:
+        #             continue
+        #         if filters.get("max_experience") is not None and exp > filters["max_experience"]:
+        #             continue
 
-            filtered_candidates.append(c)
+        #     filtered_candidates.append(c)
+        # for candidate in candidates:
 
-        if not filtered_candidates:
-            return {
-                "success": True,
-                "answer": "No candidates match the selected profile filters.",
-                "sources": []
-            }
+        #     candidate["interests"] = frappe.get_all(
+        #         "Candidate Interest",
+        #         filters={"parent": candidate["name"]},
+        #         # fields=["feature_name", "icon", "description"]
+        #         fields=["*"]
+        #     )
+
+        #     candidate["education"] = frappe.get_all(
+        #         "Education",
+        #         filters={"parent": candidate["name"]},
+        #         # fields=["amenity_name", "icon", "description"]
+        #         fields=["*"]
+        #     )
+            
+        #     candidate["experience"] = frappe.get_all(
+        #         "Experience",
+        #         filters={"parent": candidate["name"]},
+        #         # fields=["category", "price"]
+        #         fields=["*"]
+        #     )
+            
+        #     candidate["skills"] = frappe.get_all(
+        #         "Skillset",
+        #         filters={"parent": candidate["name"]},
+        #         # fields=["plan_name", "category", "price"]
+        #         fields=["*"]
+        #     )
+        # filtered_candidates.append(candidate)
+        # return filtered_candidates
+    
+        # frappe.log_error(title="Chat API Debug", message=f"Candidate data: {candidates}")  # Log first 5 candidates for debugging
+    
+
+        # if not filtered_candidates:
+        #     return {
+        #         "success": True,
+        #         "answer": "No candidates match the selected profile filters.",
+        #         "sources": []
+        #     }
 
         # -----------------------------
         # 🔥 TABLE MODE (URGENT CLIENT REQUIREMENT)
         # -----------------------------
+        # if response_format == "table":
+        #     rows = []
+
+        #     for c in filtered_candidates:
+        #         # rows.append({
+        #         #     "name": c.first_name,
+        #         #     "email": c.email,
+        #         #     "phone": c.phone,
+        #         #     "skills": c.skills
+        #         # })
+        #         rows.append({
+        #             "name": c["first_name"],
+        #             "email": c["email"],
+        #             "phone": c["phone"],
+        #             "skills": c["skills"]  # note: this is now a list of dicts from Skillset
+        #         })
+
+        #     return {
+        #         "success": True,
+        #         "format": "table",
+        #         "columns": ["Name", "Email", "Phone", "Skills"],
+        #         "rows": rows
+        #     }
+
+        # -----------------------------
+        # 4️⃣ TEXT MODE (existing AI chat)
+        # -----------------------------
+        # Build candidate ID map
+        # candidate_map = {c.name: c.first_name for c in filtered_candidates}
+        # candidate_map = {c["name"]: c["first_name"] for c in filtered_candidates}
+        # candidates = frappe.get_all("Resume", 
+        #     filters={"parse_status": "Parsed"},
+        #     fields=["name", "parsed_json"]
+        # )
+        candidates = frappe.get_all("Profile", fields=["name", "first_name", "last_name"])
+        if not candidates:
+            return {
+                "success": True,
+                "answer": "No candidates found.",
+                "sources": []
+            }
+        # candidate_map = {c["name"]: c["first_name"] for c in candidates}
+        candidate_map = {
+            c["name"]: f"{c['first_name'] or ''} {c['last_name'] or ''}".strip()
+            for c in candidates
+        }
+        
+        # candidate_map = {c["name"]: c["name"] for c in candidates}
+        
         if response_format == "table":
             rows = []
-
-            for c in filtered_candidates:
+            for c in candidates:
+                parsed = json.loads(c.get("parsed_json") or "{}")
                 rows.append({
-                    "name": c.full_name,
-                    "email": c.email,
-                    "phone": c.phone,
-                    "skills": c.skills
+                    "name": f"{parsed.get('first_name', '')} {parsed.get('last_name', '')}".strip(),
+                    "email": parsed.get("email", ""),
+                    "phone": parsed.get("phone", ""),
+                    "skills": [s["skill_name"] for s in parsed.get("skills", [])]
                 })
-
             return {
                 "success": True,
                 "format": "table",
@@ -529,15 +239,10 @@ def chat_query(question=None, filters=None, response_format="text"):
                 "rows": rows
             }
 
-        # -----------------------------
-        # 4️⃣ TEXT MODE (existing AI chat)
-        # -----------------------------
-        # Build candidate ID map
-        candidate_map = {c.name: c.full_name for c in filtered_candidates}
-
         query_vector = embed_texts([question])[0]
         matches = search_similar(query_vector, top_k=10)
-
+        frappe.log_error(title="Vector Matches Debug", message=f"Matches: {matches}\nCandidate map keys: {list(candidate_map.keys())}")
+        # frappe.log_error(title="Profile Fields", message=f"{filtered_candidates[0]}")
         matches = [
             m for m in matches
             if m.get("candidate_id") in candidate_map

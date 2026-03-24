@@ -15,7 +15,7 @@
    "fieldname": "candidate",
    "fieldtype": "Link",
    "label": "Candidate",
-   "options": "Candidate"
+   "options": "Profile"
   },
   {
    "fieldname": "chunk_text",
@@ -36,7 +36,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-05 14:53:45.145861",
+ "modified": "2026-03-24 17:02:03.485984",
  "modified_by": "Administrator",
  "module": "Resume Ai",
  "name": "Resume Chunk",

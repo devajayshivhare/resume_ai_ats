@@ -58,3 +58,8 @@ def search_similar(query_vector, top_k=5):
             results.append(metadata[idx])
 
     return results
+
+def reset_index():
+    index = faiss.IndexFlatL2(DIM)
+    metadata = []
+    save_index(index, metadata)

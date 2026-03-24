@@ -6,7 +6,7 @@ import json
 import re
 from resume_ai.api.resume.chunker import chunk_text
 from resume_ai.api.resume.embedder import embed_texts
-# from resume_ai.api.resume.vector_store import add_embeddings
+from resume_ai.api.resume.vector_store import add_embeddings
 from datetime import datetime
 from resume_ai.api.resume.gemini import get_gemini
 
@@ -63,6 +63,71 @@ Rules:
 - If exact dates are unknown, use the first day of the month (e.g., "YYYY-MM-01") or year ("YYYY-01-01").
 - Do not guess missing details. Do not fabricate data.
 """
+
+def index_resume(candidate_id, resume_text):
+    # Delete old chunks for this candidate
+    frappe.db.delete("Resume Chunk", {"candidate": candidate_id})
+    frappe.db.commit()
+
+    chunks = chunk_text(resume_text)
+    if not chunks:
+        return
+
+    chunk_docs = []
+    for i, chunk in enumerate(chunks):
+        chunk_doc = frappe.get_doc({
+            "doctype": "Resume Chunk",
+            "candidate": candidate_id,
+            "chunk_index": i,
+            "chunk_text": chunk
+        })
+        chunk_doc.insert(ignore_permissions=True)
+        chunk_docs.append(chunk_doc)
+
+    frappe.db.commit()
+
+    embeddings = embed_texts([d.chunk_text for d in chunk_docs])
+
+    meta = []
+    for doc in chunk_docs:
+        meta.append({
+            "candidate_id": candidate_id,
+            "resume_chunk": doc.name
+        })
+
+    add_embeddings(embeddings, meta)
+
+# def index_resume(candidate_id, resume_text):
+#     # 1️⃣ Split resume into chunks
+#     chunks = chunk_text(resume_text)
+
+#     if not chunks:
+#         return
+
+#     # 2️⃣ Save chunks into Frappe (Resume Chunk DocType)
+#     chunk_docs = []
+#     for i, chunk in enumerate(chunks):
+#         doc = frappe.get_doc({
+#             "doctype": "Resume Chunk",
+#             "candidate": candidate_id,
+#             "chunk_index": i,
+#             "chunk_text": chunk
+#         })
+#         doc.insert(ignore_permissions=True)
+#         chunk_docs.append(doc)
+
+#     # 3️⃣ Create embeddings from chunk text
+#     embeddings = embed_texts([d.chunk_text for d in chunk_docs])
+
+#     # 4️⃣ Store embeddings in FAISS with Resume Chunk reference
+#     meta = []
+#     for doc in chunk_docs:
+#         meta.append({
+#             "candidate_id": candidate_id,
+#             "resume_chunk": doc.name  # 🔑 IMPORTANT
+#         })
+
+#     add_embeddings(embeddings, meta)
 
 # def parse_with_llm(resume_text):
 #     model = get_gemini()
@@ -278,6 +343,11 @@ def process_resume_bg(doc_name):
         # Use db_set instead of save() in background jobs to prevent infinite loops
         doc.db_set("parsed_json", json.dumps(parsed, indent=2))
         doc.db_set("parse_status", "Parsed")
+        
+        # ✅ Index resume into FAISS
+        resume_text = json.dumps(parsed)  # use parsed JSON as text source
+        index_resume(doc.profile, resume_text)
+        # doc.db_set("vector_indexed", 1)  # Optional flag to indicate indexing done
 
         logger.info("Resume parsed successfully")
 
