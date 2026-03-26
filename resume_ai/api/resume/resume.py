@@ -64,6 +64,38 @@ Rules:
 - Do not guess missing details. Do not fabricate data.
 """
 
+from datetime import datetime
+
+def calculate_experience_years(experiences):
+    total_months = 0
+
+    for exp in experiences:
+        is_current = exp.get("is_current", False)
+        start_str = exp.get("start_date", "")
+        end_str = exp.get("end_date", "")
+
+        if not start_str:
+            continue
+
+        try:
+            start = datetime.strptime(start_str, "%Y-%m-%d")
+        except ValueError:
+            continue
+
+        if is_current or not end_str:
+            end = datetime.today()
+        else:
+            try:
+                end = datetime.strptime(end_str, "%Y-%m-%d")
+            except ValueError:
+                continue
+
+        months = (end.year - start.year) * 12 + (end.month - start.month)
+        if months > 0:
+            total_months += months
+
+    return round(total_months / 12, 2)
+
 def index_resume(candidate_id, resume_text):
     # Delete old chunks for this candidate
     frappe.db.delete("Resume Chunk", {"candidate": candidate_id})
@@ -339,6 +371,10 @@ def process_resume_bg(doc_name):
         parsed = parse_with_gemini_file(file_path)
         # frappe.log_error(title="Resume Parser: LLM Parsing Failed", message=f"parsed: {parsed}")
         logger.info("Parsing completed")
+        
+        # ✅ Calculate and inject into parsed JSON
+        parsed["experience_years"] = calculate_experience_years(parsed.get("experience", []))
+
 
         # Use db_set instead of save() in background jobs to prevent infinite loops
         doc.db_set("parsed_json", json.dumps(parsed, indent=2))
