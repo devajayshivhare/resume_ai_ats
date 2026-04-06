@@ -96,11 +96,34 @@ def calculate_experience_years(experiences):
 
     return round(total_months / 12, 2)
 
-def index_resume(candidate_id, resume_text):
-    # Delete old chunks for this candidate
-    frappe.db.delete("Resume Chunk", {"candidate": candidate_id})
+def index_resume(candidate_email, resume_text):
+    frappe.log_error(
+        title="Indexing Resume",
+        message=f"Candidate Email: {candidate_email}"
+    )
+
+    # ✅ Step 1: Convert email → candidate name
+    candidate_name = frappe.db.get_value(
+        "User",
+        {"email": candidate_email},
+        "name"
+    )
+
+    # ✅ Step 2: If not exists → create candidate
+    # if not candidate_name:
+    #     candidate_doc = frappe.get_doc({
+    #         "doctype": "Candidate",
+    #         "email": candidate_email,
+    #         "candidate_name": candidate_email  # adjust if needed
+    #     })
+    #     candidate_doc.insert(ignore_permissions=True)
+    #     candidate_name = candidate_doc.name
+
+    # ✅ Step 3: Delete old chunks
+    frappe.db.delete("Resume Chunk", {"candidate": candidate_name})
     frappe.db.commit()
 
+    # ✅ Step 4: Create chunks
     chunks = chunk_text(resume_text)
     if not chunks:
         return
@@ -109,7 +132,7 @@ def index_resume(candidate_id, resume_text):
     for i, chunk in enumerate(chunks):
         chunk_doc = frappe.get_doc({
             "doctype": "Resume Chunk",
-            "candidate": candidate_id,
+            "candidate": candidate_name,  # ✅ FIXED
             "chunk_index": i,
             "chunk_text": chunk
         })
@@ -118,12 +141,13 @@ def index_resume(candidate_id, resume_text):
 
     frappe.db.commit()
 
+    # ✅ Step 5: Embeddings
     embeddings = embed_texts([d.chunk_text for d in chunk_docs])
 
     meta = []
     for doc in chunk_docs:
         meta.append({
-            "candidate_id": candidate_id,
+            "candidate_id": candidate_name,  # ✅ FIXED
             "resume_chunk": doc.name
         })
 

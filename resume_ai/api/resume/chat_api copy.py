@@ -5,31 +5,32 @@ from resume_ai.api.resume.embedder import embed_texts
 from resume_ai.api.resume.vector_store import search_similar
 from resume_ai.api.resume.gemini import get_gemini
 
-def chat_with_llm(context, question, history=None):
+def chat_with_llm(context, question):
     model = get_gemini()
 
-    # Format the history into a string
-    history_text = ""
-    if history:
-        for msg in history:
-            role = "User" if msg.get("role") == "user" else "Assistant"
-            history_text += f"{role}: {msg.get('content')}\n"
-
     prompt = f"""
-You are a resume intelligence AI assistant. You help recruiters find and evaluate candidates based on their resumes.
+You are an resume intelligence AI assistant. You help recruiters find and evaluate candidates based on their resumes.
 
-... (Keep your existing rules here) ...
+You can answer questions about:
+- Candidate skills and experience
+- Education and qualifications  
+- Work history and roles
+- Comparing candidates
+- Answer ONLY questions relevant to recruitment decisions (skills, experience, education)
+- Do NOT volunteer candidate personal details (email, phone, address) unless explicitly asked
+- Do NOT reveal candidate names unless directly asked about a specific person
+- If asked for contact details, say: "Please access candidate contact info through the official profile page"
+- If the answer is not found in the resumes, say: "Not found in the uploaded resumes."
 
-Conversation History:
-{history_text}
+If the question is not related to the resume data provided, politely explain what types of questions you can answer.
+If the answer is not found in the resumes, say: "Not found in the uploaded resumes."
 
-New Context from Resumes:
+Context:
 {context}
 
-Current Question:
+Question:
 {question}
 """
-    # Use the history-aware prompt
     result = model.generate_content(prompt)
     return result.text.strip()
 
@@ -39,7 +40,7 @@ from resume_ai.api.resume.embedder import embed_texts
 from resume_ai.api.resume.vector_store import search_similar
 
 @frappe.whitelist(allow_guest=True)
-def chat_query(question=None, filters=None, response_format="text", history=None):
+def chat_query(question=None, filters=None, response_format="text"):
     # Only allow recruiters/admins
     # if frappe.session.user == "Guest":
     #     frappe.throw("Authentication required", frappe.AuthenticationError)
@@ -56,10 +57,6 @@ def chat_query(question=None, filters=None, response_format="text", history=None
         # -----------------------------
         if isinstance(filters, str):
             filters = json.loads(filters)
-            
-        # --- NEW: Normalize history from frontend ---
-        if isinstance(history, str):
-            history = json.loads(history)
 
         filters = filters or {}
 
@@ -145,8 +142,8 @@ def chat_query(question=None, filters=None, response_format="text", history=None
                 "candidate": candidate_map.get(c["candidate"], c["candidate"])
             }
 
-        # answer = chat_with_llm(context, question)
-        answer = chat_with_llm(context, question, history=history)
+        answer = chat_with_llm(context, question)
+
         return {
             "success": True,
             "answer": answer,

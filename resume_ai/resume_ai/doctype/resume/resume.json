@@ -1,45 +1,46 @@
 {
  "actions": [],
  "allow_rename": 1,
- "creation": "2026-01-05 14:51:11.060450",
+ "creation": "2026-04-02 13:09:51.896811",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "candidate",
-  "chunk_text",
-  "chunk_index",
-  "embedding_id"
+  "resume_file",
+  "profile",
+  "parse_status",
+  "parsed_json"
  ],
  "fields": [
   {
-   "fieldname": "candidate",
+   "fieldname": "resume_file",
+   "fieldtype": "Attach",
+   "label": "Resume File"
+  },
+  {
+   "fieldname": "profile",
    "fieldtype": "Link",
-   "label": "Candidate",
+   "label": "Profile",
    "options": "User"
   },
   {
-   "fieldname": "chunk_text",
-   "fieldtype": "Long Text",
-   "label": "Chunk Text"
+   "fieldname": "parse_status",
+   "fieldtype": "Select",
+   "label": "Parse Status",
+   "options": "\nPending\nParsed\nFailed"
   },
   {
-   "fieldname": "chunk_index",
-   "fieldtype": "Int",
-   "label": "Chunk Index"
-  },
-  {
-   "fieldname": "embedding_id",
-   "fieldtype": "Data",
-   "label": "Embedding Id"
+   "fieldname": "parsed_json",
+   "fieldtype": "JSON",
+   "label": "Parsed JSON"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-02 14:08:32.150504",
+ "modified": "2026-04-02 13:41:41.263831",
  "modified_by": "Administrator",
  "module": "Resume Ai",
- "name": "Resume Chunk",
+ "name": "Resume",
  "owner": "Administrator",
  "permissions": [
   {
