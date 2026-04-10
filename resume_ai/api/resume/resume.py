@@ -131,126 +131,7 @@ def index_resume(resume_id, resume_text):
 
     add_embeddings(embeddings, meta)
 
-# def index_resume(candidate_email, resume_text):
-#     frappe.log_error(
-#         title="Indexing Resume",
-#         message=f"Candidate Email: {candidate_email}"
-#     )
 
-#     # ✅ Step 1: Convert email → candidate name
-#     candidate_name = frappe.db.get_value(
-#         "User",
-#         {"email": candidate_email},
-#         "name"
-#     )
-
-#     # ✅ Step 2: If not exists → create candidate
-#     # if not candidate_name:
-#     #     candidate_doc = frappe.get_doc({
-#     #         "doctype": "Candidate",
-#     #         "email": candidate_email,
-#     #         "candidate_name": candidate_email  # adjust if needed
-#     #     })
-#     #     candidate_doc.insert(ignore_permissions=True)
-#     #     candidate_name = candidate_doc.name
-
-#     # ✅ Step 3: Delete old chunks
-#     frappe.db.delete("Resume Chunk", {"candidate": candidate_name})
-#     frappe.db.commit()
-
-#     # ✅ Step 4: Create chunks
-#     chunks = chunk_text(resume_text)
-#     if not chunks:
-#         return
-
-#     chunk_docs = []
-#     for i, chunk in enumerate(chunks):
-#         chunk_doc = frappe.get_doc({
-#             "doctype": "Resume Chunk",
-#             "candidate": candidate_name,  # ✅ FIXED
-#             "chunk_index": i,
-#             "chunk_text": chunk
-#         })
-#         chunk_doc.insert(ignore_permissions=True)
-#         chunk_docs.append(chunk_doc)
-
-#     frappe.db.commit()
-
-#     # ✅ Step 5: Embeddings
-#     embeddings = embed_texts([d.chunk_text for d in chunk_docs])
-
-#     meta = []
-#     for doc in chunk_docs:
-#         meta.append({
-#             "candidate_id": candidate_name,  # ✅ FIXED
-#             "resume_chunk": doc.name
-#         })
-
-#     add_embeddings(embeddings, meta)
-
-# def index_resume(candidate_id, resume_text):
-#     # 1️⃣ Split resume into chunks
-#     chunks = chunk_text(resume_text)
-
-#     if not chunks:
-#         return
-
-#     # 2️⃣ Save chunks into Frappe (Resume Chunk DocType)
-#     chunk_docs = []
-#     for i, chunk in enumerate(chunks):
-#         doc = frappe.get_doc({
-#             "doctype": "Resume Chunk",
-#             "candidate": candidate_id,
-#             "chunk_index": i,
-#             "chunk_text": chunk
-#         })
-#         doc.insert(ignore_permissions=True)
-#         chunk_docs.append(doc)
-
-#     # 3️⃣ Create embeddings from chunk text
-#     embeddings = embed_texts([d.chunk_text for d in chunk_docs])
-
-#     # 4️⃣ Store embeddings in FAISS with Resume Chunk reference
-#     meta = []
-#     for doc in chunk_docs:
-#         meta.append({
-#             "candidate_id": candidate_id,
-#             "resume_chunk": doc.name  # 🔑 IMPORTANT
-#         })
-
-#     add_embeddings(embeddings, meta)
-
-# def parse_with_llm(resume_text):
-#     model = get_gemini()
-
-#     prompt = PROMPT + "\n\nRESUME:\n" + resume_text
-
-#     result = model.generate_content(prompt)
-#     text = result.text.strip()
-
-#     if text.startswith("```"):
-#         text = text.replace("```json", "").replace("```", "").strip()
-
-#     return json.loads(text)
-
-
-# # ---------------------------------------------------
-# # Resume Text Extraction
-# # ---------------------------------------------------
-# def extract_text(file_path):
-#     text = ""
-
-#     if file_path.lower().endswith(".pdf"):
-#         with pdfplumber.open(file_path) as pdf:
-#             for page in pdf.pages:
-#                 text += (page.extract_text() or "") + "\n"
-
-#     elif file_path.lower().endswith(".docx"):
-#         doc = docx.Document(file_path)
-#         for p in doc.paragraphs:
-#             text += p.text + "\n"
-
-#     return text
 
 import base64
 
@@ -269,106 +150,12 @@ def parse_with_gemini_file(file_path):
         ]
     )
     
-    # frappe.log_error(title="Resume Parser: Gemini Raw Response", message=f"response: {response}")
-
     text = response.text.strip()
 
     if text.startswith("```"):
         text = text.replace("```json", "").replace("```", "").strip()
 
     return json.loads(text)
-
-
-
-
-
-
-
-
-# def resume(doc, method=None):
-#     """
-#     Auto parse resume after insert
-#     Errors will appear in Desk → Error Log
-#     """
-
-#     logger = frappe.logger("resume_parser", allow_site=True)
-
-#     logger.info("===== RESUME PARSER STARTED =====")
-#     logger.info(f"Doc: {doc.name}")
-#     logger.info(f"File URL: {doc.resume_file}")
-
-#     try:
-#         # ✅ check file attached
-#         if not doc.resume_file:
-#             logger.warning("No resume file attached.")
-#             return
-
-#         # ✅ avoid duplicate parsing
-#         if doc.parse_status == "Parsed":
-#             logger.info("Already parsed. Skipping.")
-#             return
-
-#         # ✅ resolve file path
-#         try:
-#             file_doc = frappe.get_doc("File", {"file_url": doc.resume_file})
-#             file_path = file_doc.get_full_path()
-#             logger.info(f"File path: {file_path}")
-#         except Exception:
-#             frappe.log_error(
-#                 title="Resume Parser: File Lookup Failed",
-#                 message=frappe.get_traceback()
-#             )
-#             doc.parse_status = "File Not Found"
-#             doc.save(ignore_permissions=True)
-#             return
-
-#         # ✅ extract text
-#         logger.info("Extracting text...")
-#         text = extract_text(file_path)
-
-#         if not text.strip():
-#             frappe.log_error(
-#                 title="Resume Parser: Text Extraction Failed",
-#                 message=f"File: {file_path}"
-#             )
-#             doc.parse_status = "Extraction Failed"
-#             doc.save(ignore_permissions=True)
-#             return
-
-#         logger.info(f"Text length: {len(text)}")
-
-#         # ✅ parse via LLM
-#         logger.info("Parsing with LLM...")
-#         # parsed = parse_with_llm(text)
-        
-#         parsed = parse_with_gemini_file(file_path)
-
-#         logger.info("Parsing completed")
-
-#         # ✅ save result
-#         doc.parsed_json = json.dumps(parsed, indent=2)
-#         doc.parse_status = "Parsed"
-#         doc.save(ignore_permissions=True)
-
-#         logger.info("Resume parsed successfully")
-
-#     except Exception as e:
-#         # 🔴 visible in Desk → Error Log
-#         frappe.log_error(
-#             title=f"Resume Parser Failed: {doc.name}",
-#             message=frappe.get_traceback()
-#         )
-
-#         doc.parse_status = "Failed"
-#         doc.save(ignore_permissions=True)
-
-
-
-#done by kartikey
-
-# Move resume AI parsing to asynchronous background job
-
-# This prevents the Next.js frontend from timing out (500 error) while waiting for the Gemini API to process the document. Replaced doc.save() with db_set() in the worker thread to ensure safe database updates without triggering infinite hook loops.
 
 def resume(doc, method=None):
     """
@@ -385,6 +172,32 @@ def resume(doc, method=None):
         timeout=300
     )
 
+
+def flatten_resume_data(parsed):
+    return {
+        "candidate_name": f"{parsed.get('first_name', '')} {parsed.get('last_name', '')}".strip(),
+
+        "experience_years": parsed.get("experience_years", 0),
+
+        "skills": ", ".join([
+            s.get("skill_name", "") for s in parsed.get("skills", [])
+        ]),
+
+        "current_role": (
+            parsed.get("experience", [{}])[0].get("role", "")
+            if parsed.get("experience") else ""
+        ),
+
+        "degree": (
+            parsed.get("education", [{}])[0].get("degree", "")
+            if parsed.get("education") else ""
+        ),
+
+        "institution": (
+            parsed.get("education", [{}])[0].get("institution", "")
+            if parsed.get("education") else ""
+        )
+    }
 
 def process_resume_bg(doc_name):
     """
@@ -415,24 +228,25 @@ def process_resume_bg(doc_name):
             doc.db_set("parse_status", "File Not Found")
             return
 
-        # logger.info("Extracting text...")
-        # text = extract_text(file_path)
-
-        # if not text.strip():
-        #     frappe.log_error(title="Resume Parser: Text Extraction Failed", message=f"File: {file_path}")
-        #     doc.db_set("parse_status", "Extraction Failed")
-        #     return
-
-        # logger.info(f"Text length: {len(text)}")
+        
         logger.info("Sending resume to Gemini for parsing...")
 
         logger.info("Parsing with LLM...")
         parsed = parse_with_gemini_file(file_path)
-        # frappe.log_error(title="Resume Parser: LLM Parsing Failed", message=f"parsed: {parsed}")
         logger.info("Parsing completed")
         
         # ✅ Calculate and inject into parsed JSON
         parsed["experience_years"] = calculate_experience_years(parsed.get("experience", []))
+        
+        flat_data = flatten_resume_data(parsed)
+
+        # ✅ Save flattened fields
+        doc.db_set("candidate_name", flat_data["candidate_name"])
+        doc.db_set("experience_years", flat_data["experience_years"])
+        doc.db_set("skills", flat_data["skills"])
+        doc.db_set("current_role", flat_data["current_role"])
+        doc.db_set("degree", flat_data["degree"])
+        doc.db_set("institution", flat_data["institution"])
 
 
         # Use db_set instead of save() in background jobs to prevent infinite loops
@@ -442,7 +256,6 @@ def process_resume_bg(doc_name):
         # ✅ Index resume into FAISS
         resume_text = json.dumps(parsed)  # use parsed JSON as text source
         index_resume(doc.name, resume_text)
-        # doc.db_set("vector_indexed", 1)  # Optional flag to indicate indexing done
 
         logger.info("Resume parsed successfully")
 

@@ -8,7 +8,13 @@
   "resume_file",
   "profile",
   "parse_status",
-  "parsed_json"
+  "parsed_json",
+  "candidate_name",
+  "experience_years",
+  "skills",
+  "current_role",
+  "degree",
+  "institution"
  ],
  "fields": [
   {
@@ -32,12 +38,42 @@
    "fieldname": "parsed_json",
    "fieldtype": "JSON",
    "label": "Parsed JSON"
+  },
+  {
+   "fieldname": "candidate_name",
+   "fieldtype": "Data",
+   "label": "Candidate Name"
+  },
+  {
+   "fieldname": "experience_years",
+   "fieldtype": "Float",
+   "label": "Experience Years"
+  },
+  {
+   "fieldname": "skills",
+   "fieldtype": "Text",
+   "label": "Skills"
+  },
+  {
+   "fieldname": "current_role",
+   "fieldtype": "Data",
+   "label": "Current Role"
+  },
+  {
+   "fieldname": "degree",
+   "fieldtype": "Data",
+   "label": "Degree"
+  },
+  {
+   "fieldname": "institution",
+   "fieldtype": "Data",
+   "label": "Institution"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-02 13:41:41.263831",
+ "modified": "2026-04-10 16:43:25.515780",
  "modified_by": "Administrator",
  "module": "Resume Ai",
  "name": "Resume",
