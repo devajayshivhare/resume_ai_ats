@@ -17,7 +17,8 @@ def chat_with_llm(context, question, history=None):
             role = "User" if msg.get("role") == "user" else "Assistant"
             history_text += f"{role}: {msg.get('content')}\n"
 
-    prompt = f"""
+
+        prompt = f"""
 You are an resume intelligence AI assistant. You help recruiters find and evaluate candidates based on their resumes.
 
 You can answer questions about:
@@ -40,75 +41,15 @@ Context:
 Question:
 {question}
 """
-    # result = model.generate_content(prompt, stream=True)
     result = model.generate_content(prompt)
     return result.text.strip()
-    # return result
 
-
-# -----------------------------
-# NEW: Sidebar & Session APIs
-# -----------------------------
-@frappe.whitelist()
-def get_chat_sessions(search_text=None):
-    """Returns a list of past chats for the sidebar, specific to the logged-in HR user."""
-    # Ensure guest cannot see chats
-    if frappe.session.user == "Guest":
-        frappe.throw("Authentication required", frappe.AuthenticationError)
-        
-    filters = {"user": frappe.session.user}
-    if search_text:
-        filters["title"] = ["like", f"%{search_text}%"]
-
-    sessions = frappe.get_all(
-        "AI Chat Session",
-        filters=filters,
-        fields=["name", "title", "creation", "is_pinned"],
-        # Order by Pinned first, then newest creation date
-        order_by="is_pinned desc, creation desc"
-    )
-    return {"success": True, "sessions": sessions}
-
-@frappe.whitelist()
-def toggle_pin_session(session_id):
-    doc = frappe.get_doc("AI Chat Session", session_id)
-    if doc.user != frappe.session.user:
-        frappe.throw("Not permitted", frappe.PermissionError)
-    
-    doc.is_pinned = 0 if doc.is_pinned else 1
-    doc.save(ignore_permissions=True)
-    return {"success": True, "is_pinned": doc.is_pinned}
-
-@frappe.whitelist()
-def delete_session(session_id):
-    doc = frappe.get_doc("AI Chat Session", session_id)
-    if doc.user != frappe.session.user:
-        frappe.throw("Not permitted", frappe.PermissionError)
-    
-    frappe.delete_doc("AI Chat Session", session_id)
-    return {"success": True}
-
-@frappe.whitelist()
-def get_session_history(session_id):
-    """Loads the full message history when a user clicks a chat in the sidebar."""
-    if not frappe.db.exists("AI Chat Session", session_id):
-        return {"success": False, "error": "Session not found"}
-        
-    doc = frappe.get_doc("AI Chat Session", session_id)
-    
-    # Security check: Ensure the HR user owns this chat
-    if doc.user != frappe.session.user:
-        frappe.throw("Not permitted", frappe.PermissionError)
-
-    messages = json.loads(doc.messages or "[]")
-    return {"success": True, "messages": messages, "title": doc.title}
 
 # -----------------------------
 # 2️⃣ Main API Endpoint
 # -----------------------------
 @frappe.whitelist(allow_guest=True)
-# @frappe.whitelist()
-def chat_query(question=None, filters=None, response_format="text", history=None, session_id=None):
+def chat_query(question=None, filters=None, response_format="text", history=None):
     try:
         # -----------------------------
         # Normalize inputs
@@ -179,7 +120,39 @@ def chat_query(question=None, filters=None, response_format="text", history=None
             fields=["chunk_text", "resume_id"] # Fetching by resume_id instead of profile
         )
 
-       
+        # -----------------------------
+        # Build Context & Source Links
+        # -----------------------------
+        # unique_sources = {}
+        # context_parts = []
+
+        # for c in chunks:
+        #     resume_id = c["resume_id"]
+            
+        #     # Fetch the actual Resume document using the ID
+        #     resume_doc = frappe.db.get_value(
+        #         "Resume", 
+        #         resume_id, 
+        #         ["resume_file", "parsed_json"], 
+        #         as_dict=True
+        #     )
+
+        #     if resume_doc:
+        #         # Extract the real candidate name from the parsed JSON
+        #         parsed = json.loads(resume_doc.parsed_json or "{}")
+        #         first_name = parsed.get("first_name", "")
+        #         last_name = parsed.get("last_name", "")
+        #         candidate_name = f"{first_name} {last_name}".strip() or "Unknown Candidate"
+
+        #         # Add to context for Gemini to read
+        #         context_parts.append(f"Candidate: {candidate_name}\n{c['chunk_text']}")
+
+        #         # Build the source for Next.js to render the download button
+        #         unique_sources[resume_id] = {
+        #             "candidate": candidate_name,
+        #             "download_url": resume_doc.resume_file
+        #         }
+        
         # -----------------------------
         # Download Intent Filter
         # -----------------------------
@@ -243,48 +216,11 @@ def chat_query(question=None, filters=None, response_format="text", history=None
         # -----------------------------
         context = "\n\n".join(context_parts)
         answer = chat_with_llm(context, question, history=history)
-        
-        # 1. Prepare the new Assistant message object
-        assistant_message = {
-            "role": "assistant",
-            "content": answer,
-            "sources": list(unique_sources.values())
-        }
-        
-        # 2. Database Persistence Logic
-        if not session_id:
-            # Create a brand new session if this is the first message
-            # Create a short title based on the first question (first 30 chars)
-            short_title = question[:30] + "..." if len(question) > 30 else question
-            
-            new_session = frappe.get_doc({
-                "doctype": "AI Chat Session",
-                "title": short_title,
-                "user": frappe.session.user,
-                "messages": json.dumps([
-                    {"role": "user", "content": question},
-                    assistant_message
-                ])
-            })
-            new_session.insert(ignore_permissions=True)
-            session_id = new_session.name
-        else:
-            # Update an existing session
-            session_doc = frappe.get_doc("AI Chat Session", session_id)
-            current_messages = json.loads(session_doc.messages or "[]")
-            
-            # Append both the new user question and the AI answer
-            current_messages.append({"role": "user", "content": question})
-            current_messages.append(assistant_message)
-            
-            session_doc.messages = json.dumps(current_messages)
-            session_doc.save(ignore_permissions=True)
 
         return {
             "success": True,
             "answer": answer,
-            "sources": list(unique_sources.values()),
-            "session_id": session_id # Tell the frontend what session we are in
+            "sources": list(unique_sources.values())
         }
 
     except Exception as e:

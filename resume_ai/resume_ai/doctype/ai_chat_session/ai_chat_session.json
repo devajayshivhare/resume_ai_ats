@@ -1,45 +1,47 @@
 {
  "actions": [],
  "allow_rename": 1,
- "creation": "2026-01-05 14:51:11.060450",
+ "creation": "2026-04-08 13:17:18.410626",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "resume_id",
-  "chunk_text",
-  "chunk_index",
-  "embedding_id"
+  "title",
+  "user",
+  "messages",
+  "is_pinned"
  ],
  "fields": [
   {
-   "fieldname": "chunk_text",
-   "fieldtype": "Long Text",
-   "label": "Chunk Text"
-  },
-  {
-   "fieldname": "chunk_index",
-   "fieldtype": "Int",
-   "label": "Chunk Index"
-  },
-  {
-   "fieldname": "embedding_id",
+   "fieldname": "title",
    "fieldtype": "Data",
-   "label": "Embedding Id"
+   "label": "Chat Title"
   },
   {
-   "fieldname": "resume_id",
+   "fieldname": "user",
    "fieldtype": "Link",
-   "label": "Resume Id",
-   "options": "Resume"
+   "label": "HR User",
+   "options": "User"
+  },
+  {
+   "fieldname": "messages",
+   "fieldtype": "Code",
+   "label": "Message History",
+   "options": "JSON"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_pinned",
+   "fieldtype": "Check",
+   "label": "Pin"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-07 17:27:32.861827",
+ "modified": "2026-04-09 10:27:05.107457",
  "modified_by": "Administrator",
  "module": "Resume Ai",
- "name": "Resume Chunk",
+ "name": "AI Chat Session",
  "owner": "Administrator",
  "permissions": [
   {

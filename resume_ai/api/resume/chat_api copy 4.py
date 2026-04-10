@@ -50,43 +50,19 @@ Question:
 # NEW: Sidebar & Session APIs
 # -----------------------------
 @frappe.whitelist()
-def get_chat_sessions(search_text=None):
+def get_chat_sessions():
     """Returns a list of past chats for the sidebar, specific to the logged-in HR user."""
     # Ensure guest cannot see chats
     if frappe.session.user == "Guest":
         frappe.throw("Authentication required", frappe.AuthenticationError)
-        
-    filters = {"user": frappe.session.user}
-    if search_text:
-        filters["title"] = ["like", f"%{search_text}%"]
 
     sessions = frappe.get_all(
         "AI Chat Session",
-        filters=filters,
-        fields=["name", "title", "creation", "is_pinned"],
-        # Order by Pinned first, then newest creation date
-        order_by="is_pinned desc, creation desc"
+        filters={"user": frappe.session.user},
+        fields=["name", "title", "creation"],
+        order_by="creation desc"
     )
     return {"success": True, "sessions": sessions}
-
-@frappe.whitelist()
-def toggle_pin_session(session_id):
-    doc = frappe.get_doc("AI Chat Session", session_id)
-    if doc.user != frappe.session.user:
-        frappe.throw("Not permitted", frappe.PermissionError)
-    
-    doc.is_pinned = 0 if doc.is_pinned else 1
-    doc.save(ignore_permissions=True)
-    return {"success": True, "is_pinned": doc.is_pinned}
-
-@frappe.whitelist()
-def delete_session(session_id):
-    doc = frappe.get_doc("AI Chat Session", session_id)
-    if doc.user != frappe.session.user:
-        frappe.throw("Not permitted", frappe.PermissionError)
-    
-    frappe.delete_doc("AI Chat Session", session_id)
-    return {"success": True}
 
 @frappe.whitelist()
 def get_session_history(session_id):

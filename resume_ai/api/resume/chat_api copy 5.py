@@ -41,54 +41,30 @@ Question:
 {question}
 """
     # result = model.generate_content(prompt, stream=True)
+    # return result
     result = model.generate_content(prompt)
     return result.text.strip()
-    # return result
 
 
 # -----------------------------
 # NEW: Sidebar & Session APIs
 # -----------------------------
-@frappe.whitelist()
-def get_chat_sessions(search_text=None):
+@frappe.whitelist(allow_guest=True)
+def get_chat_sessions():
     """Returns a list of past chats for the sidebar, specific to the logged-in HR user."""
     # Ensure guest cannot see chats
     if frappe.session.user == "Guest":
         frappe.throw("Authentication required", frappe.AuthenticationError)
-        
-    filters = {"user": frappe.session.user}
-    if search_text:
-        filters["title"] = ["like", f"%{search_text}%"]
 
     sessions = frappe.get_all(
         "AI Chat Session",
-        filters=filters,
-        fields=["name", "title", "creation", "is_pinned"],
-        # Order by Pinned first, then newest creation date
-        order_by="is_pinned desc, creation desc"
+        filters={"user": frappe.session.user},
+        fields=["name", "title", "creation"],
+        order_by="creation desc"
     )
     return {"success": True, "sessions": sessions}
 
-@frappe.whitelist()
-def toggle_pin_session(session_id):
-    doc = frappe.get_doc("AI Chat Session", session_id)
-    if doc.user != frappe.session.user:
-        frappe.throw("Not permitted", frappe.PermissionError)
-    
-    doc.is_pinned = 0 if doc.is_pinned else 1
-    doc.save(ignore_permissions=True)
-    return {"success": True, "is_pinned": doc.is_pinned}
-
-@frappe.whitelist()
-def delete_session(session_id):
-    doc = frappe.get_doc("AI Chat Session", session_id)
-    if doc.user != frappe.session.user:
-        frappe.throw("Not permitted", frappe.PermissionError)
-    
-    frappe.delete_doc("AI Chat Session", session_id)
-    return {"success": True}
-
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_session_history(session_id):
     """Loads the full message history when a user clicks a chat in the sidebar."""
     if not frappe.db.exists("AI Chat Session", session_id):
@@ -242,6 +218,54 @@ def chat_query(question=None, filters=None, response_format="text", history=None
         # Generate Final Answer
         # -----------------------------
         context = "\n\n".join(context_parts)
+        # llm_stream = chat_with_llm(context, question, history=history)
+        
+        # def generate_stream():
+        #     nonlocal session_id
+        #     full_answer = ""
+            
+        #     # 1. Yield text chunk-by-chunk to the frontend
+        #     for chunk in llm_stream:
+        #         if chunk.text:
+        #             full_answer += chunk.text
+        #             yield f"data: {json.dumps({'chunk': chunk.text})}\n\n"
+
+        #     # 2. Prepare the new Assistant message object
+        #     assistant_message = {
+        #         "role": "assistant",
+        #         "content": full_answer,
+        #         "sources": list(unique_sources.values())
+        #     }
+            
+        #     # 3. Database Persistence Logic (Runs after streaming finishes)
+        #     if not session_id:
+        #         short_title = question[:30] + "..." if len(question) > 30 else question
+        #         new_session = frappe.get_doc({
+        #             "doctype": "AI Chat Session",
+        #             "title": short_title,
+        #             "user": frappe.session.user,
+        #             "messages": json.dumps([
+        #                 {"role": "user", "content": question},
+        #                 assistant_message
+        #             ])
+        #         })
+        #         new_session.insert(ignore_permissions=True)
+        #         session_id = new_session.name
+        #     else:
+        #         session_doc = frappe.get_doc("AI Chat Session", session_id)
+        #         current_messages = json.loads(session_doc.messages or "[]")
+        #         current_messages.append({"role": "user", "content": question})
+        #         current_messages.append(assistant_message)
+        #         session_doc.messages = json.dumps(current_messages)
+        #         session_doc.save(ignore_permissions=True)
+
+        #     # 4. Yield the final metadata to close the stream
+        #     yield f"data: {json.dumps({'done': True, 'sources': list(unique_sources.values()), 'session_id': session_id})}\n\n"
+
+        # # Tell Frappe to return a stream instead of standard JSON
+        # frappe.local.response.type = "stream"
+        # frappe.local.response.stream = generate_stream()
+        
         answer = chat_with_llm(context, question, history=history)
         
         # 1. Prepare the new Assistant message object
@@ -286,6 +310,7 @@ def chat_query(question=None, filters=None, response_format="text", history=None
             "sources": list(unique_sources.values()),
             "session_id": session_id # Tell the frontend what session we are in
         }
+        
 
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Chat API Error")

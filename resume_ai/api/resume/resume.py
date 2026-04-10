@@ -96,34 +96,12 @@ def calculate_experience_years(experiences):
 
     return round(total_months / 12, 2)
 
-def index_resume(candidate_email, resume_text):
-    frappe.log_error(
-        title="Indexing Resume",
-        message=f"Candidate Email: {candidate_email}"
-    )
-
-    # ✅ Step 1: Convert email → candidate name
-    candidate_name = frappe.db.get_value(
-        "User",
-        {"email": candidate_email},
-        "name"
-    )
-
-    # ✅ Step 2: If not exists → create candidate
-    # if not candidate_name:
-    #     candidate_doc = frappe.get_doc({
-    #         "doctype": "Candidate",
-    #         "email": candidate_email,
-    #         "candidate_name": candidate_email  # adjust if needed
-    #     })
-    #     candidate_doc.insert(ignore_permissions=True)
-    #     candidate_name = candidate_doc.name
-
-    # ✅ Step 3: Delete old chunks
-    frappe.db.delete("Resume Chunk", {"candidate": candidate_name})
+def index_resume(resume_id, resume_text):
+    # ✅ Step 1: Delete old chunks ONLY for this specific resume document
+    frappe.db.delete("Resume Chunk", {"resume_id": resume_id})
     frappe.db.commit()
 
-    # ✅ Step 4: Create chunks
+    # ✅ Step 2: Create chunks
     chunks = chunk_text(resume_text)
     if not chunks:
         return
@@ -132,7 +110,7 @@ def index_resume(candidate_email, resume_text):
     for i, chunk in enumerate(chunks):
         chunk_doc = frappe.get_doc({
             "doctype": "Resume Chunk",
-            "candidate": candidate_name,  # ✅ FIXED
+            "resume_id": resume_id,  # Link directly to the Resume DocType
             "chunk_index": i,
             "chunk_text": chunk
         })
@@ -141,17 +119,74 @@ def index_resume(candidate_email, resume_text):
 
     frappe.db.commit()
 
-    # ✅ Step 5: Embeddings
+    # ✅ Step 3: Embeddings
     embeddings = embed_texts([d.chunk_text for d in chunk_docs])
 
     meta = []
     for doc in chunk_docs:
         meta.append({
-            "candidate_id": candidate_name,  # ✅ FIXED
+            "resume_id": resume_id,  # Store the Resume ID in FAISS
             "resume_chunk": doc.name
         })
 
     add_embeddings(embeddings, meta)
+
+# def index_resume(candidate_email, resume_text):
+#     frappe.log_error(
+#         title="Indexing Resume",
+#         message=f"Candidate Email: {candidate_email}"
+#     )
+
+#     # ✅ Step 1: Convert email → candidate name
+#     candidate_name = frappe.db.get_value(
+#         "User",
+#         {"email": candidate_email},
+#         "name"
+#     )
+
+#     # ✅ Step 2: If not exists → create candidate
+#     # if not candidate_name:
+#     #     candidate_doc = frappe.get_doc({
+#     #         "doctype": "Candidate",
+#     #         "email": candidate_email,
+#     #         "candidate_name": candidate_email  # adjust if needed
+#     #     })
+#     #     candidate_doc.insert(ignore_permissions=True)
+#     #     candidate_name = candidate_doc.name
+
+#     # ✅ Step 3: Delete old chunks
+#     frappe.db.delete("Resume Chunk", {"candidate": candidate_name})
+#     frappe.db.commit()
+
+#     # ✅ Step 4: Create chunks
+#     chunks = chunk_text(resume_text)
+#     if not chunks:
+#         return
+
+#     chunk_docs = []
+#     for i, chunk in enumerate(chunks):
+#         chunk_doc = frappe.get_doc({
+#             "doctype": "Resume Chunk",
+#             "candidate": candidate_name,  # ✅ FIXED
+#             "chunk_index": i,
+#             "chunk_text": chunk
+#         })
+#         chunk_doc.insert(ignore_permissions=True)
+#         chunk_docs.append(chunk_doc)
+
+#     frappe.db.commit()
+
+#     # ✅ Step 5: Embeddings
+#     embeddings = embed_texts([d.chunk_text for d in chunk_docs])
+
+#     meta = []
+#     for doc in chunk_docs:
+#         meta.append({
+#             "candidate_id": candidate_name,  # ✅ FIXED
+#             "resume_chunk": doc.name
+#         })
+
+#     add_embeddings(embeddings, meta)
 
 # def index_resume(candidate_id, resume_text):
 #     # 1️⃣ Split resume into chunks
@@ -406,7 +441,7 @@ def process_resume_bg(doc_name):
         
         # ✅ Index resume into FAISS
         resume_text = json.dumps(parsed)  # use parsed JSON as text source
-        index_resume(doc.profile, resume_text)
+        index_resume(doc.name, resume_text)
         # doc.db_set("vector_indexed", 1)  # Optional flag to indicate indexing done
 
         logger.info("Resume parsed successfully")
