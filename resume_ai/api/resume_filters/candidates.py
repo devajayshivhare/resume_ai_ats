@@ -68,8 +68,6 @@ import json
 @frappe.whitelist(allow_guest=True)
 def search_candidates(filters=None):
 
-    import json
-
     # ✅ Parse filters
     if isinstance(filters, str):
         filters = json.loads(filters)
@@ -104,11 +102,6 @@ def search_candidates(filters=None):
             ["degree", "like", f"%{filters.get('degree')}%"]
         )
 
-    # ✅ Skills filter
-    # if filters.get("skills"):
-    #     db_filters.append(
-    #         ["skills", "like", f"%{filters.get('skills')}%"]
-    #     )
     skills = filters.get("skills")
 
     if skills:
@@ -127,6 +120,7 @@ def search_candidates(filters=None):
             "skills",
             "current_role",
             "degree",
+            "resume_file",
         ],
         order_by="modified desc"
     )
