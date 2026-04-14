@@ -107,6 +107,7 @@ def get_session_history(session_id):
 # 2️⃣ Main API Endpoint
 # -----------------------------
 @frappe.whitelist(allow_guest=True)
+# @frappe.validate_and_sanitize_search_inputs
 # @frappe.whitelist()
 def chat_query(question=None, filters=None, response_format="text", history=None, session_id=None):
     try:

@@ -178,6 +178,7 @@ def flatten_resume_data(parsed):
         "candidate_name": f"{parsed.get('first_name', '')} {parsed.get('last_name', '')}".strip(),
 
         "experience_years": parsed.get("experience_years", 0),
+        "location": parsed.get("location", 0),
 
         "skills": ", ".join([
             s.get("skill_name", "") for s in parsed.get("skills", [])
@@ -197,7 +198,67 @@ def flatten_resume_data(parsed):
             parsed.get("education", [{}])[0].get("institution", "")
             if parsed.get("education") else ""
         )
+        
     }
+    
+def index_resume_bg(resume_id, resume_text):
+    frappe.logger().info("Embedding started...")
+    index_resume(resume_id, resume_text)
+    
+def create_resume_from_upload(applicant_data, file_url, job_opening=None):
+    import json
+
+    # ✅ Avoid duplicate resume
+    email = applicant_data.get("email") or applicant_data.get("email_id")
+    if email and frappe.db.exists("Resume", {"email": email}):
+        return
+    
+    # ✅ Calculate and inject into parsed JSON
+    applicant_data["experience_years"] = calculate_experience_years(applicant_data.get("experience", []))
+
+    # ✅ Create Resume Doc
+    doc = frappe.get_doc({
+        "doctype": "Resume",
+        "candidate_name": applicant_data.get("applicant_name"),
+        "email": email,
+        "phone": applicant_data.get("phone_number") or applicant_data.get("phone"),
+        "resume_file": file_url,
+
+        # 🔥 Most important for AI
+        "parsed_json": json.dumps(applicant_data),
+
+        "parse_status": "Parsed"  # already parsed
+    })
+
+    doc.insert(ignore_permissions=True)
+    
+    
+
+    # ✅ Flatten data (reuse your logic)
+    flat_data = flatten_resume_data(applicant_data)
+
+    doc.db_set("experience_years", flat_data["experience_years"])
+    doc.db_set("location", flat_data["location"])
+    doc.db_set("skills", flat_data["skills"])
+    doc.db_set("current_role", flat_data["current_role"])
+    doc.db_set("degree", flat_data["degree"])
+    doc.db_set("institution", flat_data["institution"])
+
+    # ✅ Direct embedding (NO Gemini again)
+    resume_text = json.dumps(applicant_data)
+    # index_resume(doc.name, resume_text)
+    
+    frappe.enqueue(
+        "resume_ai.api.resume.resume.index_resume_bg",
+        resume_id=doc.name,
+        resume_text=resume_text,
+        queue="long",
+        timeout=300
+    )
+
+    return doc.name
+
+
 
 def process_resume_bg(doc_name):
     """
@@ -256,6 +317,13 @@ def process_resume_bg(doc_name):
         # ✅ Index resume into FAISS
         resume_text = json.dumps(parsed)  # use parsed JSON as text source
         index_resume(doc.name, resume_text)
+        # frappe.enqueue(
+        #     "resume_ai.api.resume.resume.index_resume_bg",
+        #     resume_id=doc.name,
+        #     resume_text=resume_text,
+        #     queue="long",
+        #     timeout=300
+        # )
 
         logger.info("Resume parsed successfully")
 

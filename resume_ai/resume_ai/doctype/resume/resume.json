@@ -68,6 +68,11 @@
    "fieldname": "institution",
    "fieldtype": "Data",
    "label": "Institution"
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location"
   }
  ],
  "grid_page_length": 50,

@@ -101,6 +101,10 @@ def search_candidates(filters=None):
         db_filters.append(
             ["degree", "like", f"%{filters.get('degree')}%"]
         )
+    if filters.get("location"):
+        db_filters.append(
+            ["location", "like", f"%{filters.get('location')}%"]
+        )
 
     skills = filters.get("skills")
 
@@ -121,6 +125,7 @@ def search_candidates(filters=None):
             "current_role",
             "degree",
             "resume_file",
+            "location"
         ],
         order_by="modified desc"
     )
