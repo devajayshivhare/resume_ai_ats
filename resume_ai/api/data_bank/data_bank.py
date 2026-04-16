@@ -88,22 +88,22 @@ def search_candidates(filters=None):
 
     # ✅ IMPORTANT: use list filters (NOT between)
     db_filters = [
-        ["experience_years", ">=", min_exp],
-        ["experience_years", "<=", max_exp]
+        ["custom_experience_years", ">=", min_exp],
+        ["custom_experience_years", "<=", max_exp]
     ]
 
     # ✅ Role filter
     if filters.get("role"):
         db_filters.append(
-            ["current_role", "like", f"%{filters.get('role')}%"]
+            ["custom_current_role", "like", f"%{filters.get('role')}%"]
         )
     if filters.get("degree"):
         db_filters.append(
-            ["degree", "like", f"%{filters.get('degree')}%"]
+            ["custom_degree", "like", f"%{filters.get('degree')}%"]
         )
     if filters.get("location"):
         db_filters.append(
-            ["location", "like", f"%{filters.get('location')}%"]
+            ["custom_location", "like", f"%{filters.get('location')}%"]
         )
 
     skills = filters.get("skills")
@@ -111,21 +111,22 @@ def search_candidates(filters=None):
     if skills:
         for skill in skills:
             db_filters.append(
-                ["skills", "like", f"%{skill}%"]
+                ["custom_skills", "like", f"%{skill}%"]
             )
 
     return frappe.get_all(
-        "Resume",
+        "Job Applicant",
+        # "Resume",
         filters=db_filters,
         fields=[
             "name",
-            "candidate_name",
-            "experience_years",
-            "skills",
-            "current_role",
-            "degree",
-            "resume_file",
-            "location"
+            "applicant_name",
+            "custom_experience_years",
+            "custom_skills",
+            "custom_current_role",
+            "custom_degree",
+            "resume_attachment",
+            "custom_location"
         ],
         order_by="modified desc"
     )

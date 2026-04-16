@@ -173,6 +173,22 @@ app_license = "mit"
 # 	],
 # }
 
+# scheduler_events = {
+#     "cron": {
+#         "*/1 * * * *": [  # every 1 minute
+#             "frappe.email.doctype.email_account.email_account.pull"
+#         ]
+#     }
+# }
+
+scheduler_events = {
+    "cron": {
+        "*/10 * * * *": [
+            "resume_ai.api.email.fetch_resumes.fetch_email_resumes"
+        ]
+    }
+}
+
 # Testing
 # -------
 

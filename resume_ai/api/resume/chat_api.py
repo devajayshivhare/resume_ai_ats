@@ -134,11 +134,12 @@ def chat_query(question=None, filters=None, response_format="text", history=None
         # Example: Direct DB query for "React"
         if is_list_query and "react" in question.lower():
             # Get all resumes
-            resumes = frappe.get_all("Resume", fields=["name", "parsed_json"])
+            # resumes = frappe.get_all("Resume", fields=["name", "parsed_json"])
+            resumes = frappe.get_all("Job Applicant", fields=["name", "custom_parsed_json"])
             
             rows = []
             for r in resumes:
-                parsed = json.loads(r.get("parsed_json") or "{}")
+                parsed = json.loads(r.get("custom_parsed_json") or "{}")
                 skills = [s.get("skill_name", "").lower() for s in parsed.get("skills", [])]
                 
                 if "react" in skills or "react js" in skills:
@@ -147,8 +148,8 @@ def chat_query(question=None, filters=None, response_format="text", history=None
                     
                     rows.append({
                         "Name": f"{first_name} {last_name}".strip() or "Unknown",
-                        "Email": parsed.get("email", "N/A"),
-                        "Phone": parsed.get("phone", "N/A"),
+                        "Email": parsed.get("email_id", "N/A"),
+                        "Phone": parsed.get("phone_number", "N/A"),
                         "Match": "React JS"
                     })
                     
@@ -199,14 +200,14 @@ def chat_query(question=None, filters=None, response_format="text", history=None
             resume_id = c["resume_id"]
             
             resume_doc = frappe.db.get_value(
-                "Resume", 
+                "Job Applicant", 
                 resume_id, 
-                ["resume_file", "parsed_json"], 
+                ["resume_attachment", "custom_parsed_json"], 
                 as_dict=True
             )
 
             if resume_doc:
-                parsed = json.loads(resume_doc.parsed_json or "{}")
+                parsed = json.loads(resume_doc.custom_parsed_json or "{}")
                 first_name = parsed.get("first_name", "")
                 last_name = parsed.get("last_name", "")
                 candidate_name = f"{first_name} {last_name}".strip() or "Unknown Candidate"
@@ -223,7 +224,7 @@ def chat_query(question=None, filters=None, response_format="text", history=None
                 if user_wants_file:
                     raw_sources[resume_id] = {
                         "candidate": candidate_name,
-                        "download_url": resume_doc.resume_file
+                        "download_url": resume_doc.resume_attachment
                     }
 
         # -----------------------------

@@ -30,13 +30,13 @@
    "fieldname": "resume_id",
    "fieldtype": "Link",
    "label": "Resume Id",
-   "options": "Resume"
+   "options": "Job Applicant"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-07 17:27:32.861827",
+ "modified": "2026-04-16 15:55:16.968999",
  "modified_by": "Administrator",
  "module": "Resume Ai",
  "name": "Resume Chunk",
