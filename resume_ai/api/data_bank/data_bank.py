@@ -126,7 +126,8 @@ def search_candidates(filters=None):
             "custom_current_role",
             "custom_degree",
             "resume_attachment",
-            "custom_location"
+            "custom_location",
+            "current_location",
         ],
         order_by="modified desc"
     )

@@ -133,44 +133,44 @@ def index_resume(resume_id, resume_text):
 
 
 
-# import base64
+import base64
 
-# def parse_with_gemini_file(file_path):
-#     model = get_gemini()
+def parse_with_gemini_file(file_path):
+    model = get_gemini()
 
-#     with open(file_path, "rb") as f:
-#         pdf_bytes = f.read()
+    with open(file_path, "rb") as f:
+        pdf_bytes = f.read()
 
-#     prompt = PROMPT
+    prompt = PROMPT
 
-#     response = model.generate_content(
-#         [
-#             {"mime_type": "application/pdf", "data": pdf_bytes},
-#             prompt
-#         ]
-#     )
+    response = model.generate_content(
+        [
+            {"mime_type": "application/pdf", "data": pdf_bytes},
+            prompt
+        ]
+    )
     
-#     text = response.text.strip()
+    text = response.text.strip()
 
-#     if text.startswith("```"):
-#         text = text.replace("```json", "").replace("```", "").strip()
+    if text.startswith("```"):
+        text = text.replace("```json", "").replace("```", "").strip()
 
-#     return json.loads(text)
+    return json.loads(text)
 
-# def resume(doc, method=None):
-#     """
-#     FAST HOOK: Returns instantly to Next.js, pushes heavy AI parsing to the background.
-#     """
-#     # 1. Set status instantly so frontend knows it is processing
-#     doc.db_set("parse_status", "Pending")
+def resume(doc, method=None):
+    """
+    FAST HOOK: Returns instantly to Next.js, pushes heavy AI parsing to the background.
+    """
+    # 1. Set status instantly so frontend knows it is processing
+    doc.db_set("parse_status", "Pending")
     
-#     # 2. Trigger your exact logic in the background
-#     frappe.enqueue(
-#         "resume_ai.api.resume.resume.process_resume_bg",
-#         doc_name=doc.name,
-#         queue="long",
-#         timeout=300
-#     )
+    # 2. Trigger your exact logic in the background
+    frappe.enqueue(
+        "resume_ai.api.resume.resume.process_resume_bg",
+        doc_name=doc.name,
+        queue="long",
+        timeout=300
+    )
 
 
 def flatten_resume_data(parsed):
@@ -261,73 +261,73 @@ def create_resume_from_upload(applicant_data, file_url, job_opening=None, applic
 
 
 
-# def process_resume_bg(doc_name):
-#     """
-#     This is your exact original code, just running in the background!
-#     """
-#     doc = frappe.get_doc("Resume", doc_name)
-#     logger = frappe.logger("resume_parser", allow_site=True)
+def process_resume_bg(doc_name):
+    """
+    This is your exact original code, just running in the background!
+    """
+    doc = frappe.get_doc("Resume", doc_name)
+    logger = frappe.logger("resume_parser", allow_site=True)
 
-#     logger.info("===== RESUME PARSER STARTED =====")
-#     logger.info(f"Doc: {doc.name}")
-#     logger.info(f"File URL: {doc.resume_file}")
+    logger.info("===== RESUME PARSER STARTED =====")
+    logger.info(f"Doc: {doc.name}")
+    logger.info(f"File URL: {doc.resume_file}")
 
-#     try:
-#         if not doc.resume_file:
-#             logger.warning("No resume file attached.")
-#             return
+    try:
+        if not doc.resume_file:
+            logger.warning("No resume file attached.")
+            return
 
-#         if doc.parse_status == "Parsed":
-#             logger.info("Already parsed. Skipping.")
-#             return
+        if doc.parse_status == "Parsed":
+            logger.info("Already parsed. Skipping.")
+            return
 
-#         try:
-#             file_doc = frappe.get_doc("File", {"file_url": doc.resume_file})
-#             file_path = file_doc.get_full_path()
-#             logger.info(f"File path: {file_path}")
-#         except Exception:
-#             frappe.log_error(title="Resume Parser: File Lookup Failed", message=frappe.get_traceback())
-#             doc.db_set("parse_status", "File Not Found")
-#             return
+        try:
+            file_doc = frappe.get_doc("File", {"file_url": doc.resume_file})
+            file_path = file_doc.get_full_path()
+            logger.info(f"File path: {file_path}")
+        except Exception:
+            frappe.log_error(title="Resume Parser: File Lookup Failed", message=frappe.get_traceback())
+            doc.db_set("parse_status", "File Not Found")
+            return
 
         
-#         logger.info("Sending resume to Gemini for parsing...")
+        logger.info("Sending resume to Gemini for parsing...")
 
-#         logger.info("Parsing with LLM...")
-#         parsed = parse_with_gemini_file(file_path)
-#         logger.info("Parsing completed")
+        logger.info("Parsing with LLM...")
+        parsed = parse_with_gemini_file(file_path)
+        logger.info("Parsing completed")
         
-#         # ✅ Calculate and inject into parsed JSON
-#         parsed["experience_years"] = calculate_experience_years(parsed.get("experience", []))
+        # ✅ Calculate and inject into parsed JSON
+        parsed["experience_years"] = calculate_experience_years(parsed.get("experience", []))
         
-#         flat_data = flatten_resume_data(parsed)
+        flat_data = flatten_resume_data(parsed)
 
-#         # ✅ Save flattened fields
-#         # doc.db_set("candidate_name", flat_data["candidate_name"])
-#         doc.db_set("experience_years", flat_data["experience_years"])
-#         doc.db_set("skills", flat_data["skills"])
-#         doc.db_set("current_role", flat_data["current_role"])
-#         doc.db_set("degree", flat_data["degree"])
-#         doc.db_set("institution", flat_data["institution"])
+        # ✅ Save flattened fields
+        # doc.db_set("candidate_name", flat_data["candidate_name"])
+        doc.db_set("experience_years", flat_data["experience_years"])
+        doc.db_set("skills", flat_data["skills"])
+        doc.db_set("current_role", flat_data["current_role"])
+        doc.db_set("degree", flat_data["degree"])
+        doc.db_set("institution", flat_data["institution"])
 
 
-#         # Use db_set instead of save() in background jobs to prevent infinite loops
-#         doc.db_set("parsed_json", json.dumps(parsed, indent=2))
-#         doc.db_set("parse_status", "Parsed")
+        # Use db_set instead of save() in background jobs to prevent infinite loops
+        doc.db_set("parsed_json", json.dumps(parsed, indent=2))
+        doc.db_set("parse_status", "Parsed")
         
-#         # ✅ Index resume into FAISS
-#         resume_text = json.dumps(parsed)  # use parsed JSON as text source
-#         index_resume(doc.name, resume_text)
-#         # frappe.enqueue(
-#         #     "resume_ai.api.resume.resume.index_resume_bg",
-#         #     resume_id=doc.name,
-#         #     resume_text=resume_text,
-#         #     queue="long",
-#         #     timeout=300
-#         # )
+        # ✅ Index resume into FAISS
+        resume_text = json.dumps(parsed)  # use parsed JSON as text source
+        index_resume(doc.name, resume_text)
+        # frappe.enqueue(
+        #     "resume_ai.api.resume.resume.index_resume_bg",
+        #     resume_id=doc.name,
+        #     resume_text=resume_text,
+        #     queue="long",
+        #     timeout=300
+        # )
 
-#         logger.info("Resume parsed successfully")
+        logger.info("Resume parsed successfully")
 
-#     except Exception as e:
-#         frappe.log_error(title=f"Resume Parser Failed: {doc.name}", message=frappe.get_traceback())
-#         doc.db_set("parse_status", "Failed")
+    except Exception as e:
+        frappe.log_error(title=f"Resume Parser Failed: {doc.name}", message=frappe.get_traceback())
+        doc.db_set("parse_status", "Failed")
