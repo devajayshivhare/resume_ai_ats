@@ -175,8 +175,12 @@ def fetch_email_resumes():
                         title="Resume Processing Failed",
                         message=frappe.get_traceback()
                     )
-
+            frappe.log_error(
+                        title="Communication Processed",
+                        message=comm.name
+                    )
             frappe.db.set_value("Communication", comm.name, "custom_processed", 1)
+            frappe.db.commit()
 
         except Exception:
             frappe.log_error(
