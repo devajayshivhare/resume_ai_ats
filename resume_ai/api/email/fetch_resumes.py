@@ -1,8 +1,10 @@
+# from resume_ai.api.resume.resume import match_job_opening_with_ai
 from resume.resume.doctype.pdf_upload.pdf_upload import _extract_and_parse_file
 from resume_ai.api.resume.resume import (
     calculate_experience_years,
     flatten_resume_data,
-    create_resume_from_upload
+    create_resume_from_upload,
+    match_job_opening_with_ai
 )
 import os
 import json
@@ -10,36 +12,38 @@ import frappe
 
 @frappe.whitelist(allow_guest=True)
 def fetch_email_resumes():
-
+    # ✅ Fetch ACTIVE Job Openings for matching
+    active_job_openings = frappe.get_all(
+        "Job Opening",
+        filters={"status": "Open"},
+        fields=["name", "job_title", "department", "description"]
+    )
+    
     communications = frappe.get_all(
         "Communication",
         filters={
             "communication_type": "Communication",
             "sent_or_received": "Received",
-            # "email_account": "ajayshivhare047@gmail.com"
             "email_account": "Ajayshivhare047"
         },
-        fields=["name", "sender", "subject"]
+        fields=["name", "sender", "subject", "content"]  # ✅ Added content field
     )
     
-    # return {"communications": communications}
-
     for comm in communications:
         try:
             if frappe.db.get_value("Communication", comm.name, "custom_processed"):
                 continue
 
+            # ✅ Get email body/content
+            comm_doc = frappe.get_doc("Communication", comm.name)
+            email_subject = comm_doc.subject or ""
+            email_body = comm_doc.content or ""  # or comm_doc.message if using that field
+            
             files = frappe.get_all(
                 "File",
                 filters={"attached_to_name": comm.name},
                 fields=["name", "file_url", "file_name"]
             )
-            
-            # frappe.log_error(
-            #     title="Email Resume Fetch",
-            #     message=f"Processing Communication: {comm.name} with files: {files}"
-            # )
-
 
             if not files:
                 frappe.delete_doc("Communication", comm.name, ignore_permissions=True)
@@ -58,13 +62,25 @@ def fetch_email_resumes():
 
             for f in valid_files:
                 try:
-                    # ✅ Get file path
+                    # ✅ AI Match to Job Opening
+                    matched_job_id = None
+                    if active_job_openings:
+                        matched_job_id = match_job_opening_with_ai(
+                            email_subject=email_subject,
+                            email_body=email_body,
+                            job_openings=active_job_openings
+                        )
+                        
+                    frappe.log_error(
+                        title="AI Job Matching",
+                        message=f"Email: {email_subject} matched to Job Opening ID: {matched_job_id}"
+                    )
+                    
+                    # ✅ Get file path and parse resume
                     file_doc = frappe.get_doc("File", {"file_url": f.file_url})
                     file_path = file_doc.get_full_path()
-
                     ext = os.path.splitext(file_path)[1].lower()
 
-                    # ✅ Load prompt
                     prompt_path = frappe.get_app_path(
                         "resume", "resume", "doctype", "pdf_upload", "resume_prompt.txt"
                     )
@@ -73,7 +89,6 @@ def fetch_email_resumes():
 
                     api_key = frappe.conf.get("gemini_api_key")
 
-                    # ✅ Parse (same as upload flow)
                     _fu, applicant_data, err = _extract_and_parse_file((
                         file_path,
                         f.file_url,
@@ -122,23 +137,26 @@ def fetch_email_resumes():
 
                     flat_data = flatten_resume_data(applicant_data)
 
-                    # ✅ Create Job Applicant
+                    # ✅ Create Job Applicant WITH Job Opening reference
                     applicant = frappe.get_doc({
                         "doctype": "Job Applicant",
                         "applicant_name": applicant_name,
                         "email_id": email_value,
+                        # "job_applied_for": matched_job_id,  # ✅ Link to Job Opening
+                        "job_title": matched_job_id,  # ✅ Link to Job Opening
                         "resume_attachment": f.file_url,
                         "status": "Open",
                         "phone_number": applicant_data.get("phone", ""),
                         "custom_parsed_json": json.dumps(applicant_data),
                         "custom_parse_status": "Parsed",
                         "custom_experience_years": flat_data["experience_years"],
-                        # "custom_location": flat_data["location"],
                         "current_location": flat_data["location"],
                         "custom_skills": flat_data["skills"],
                         "custom_current_role": flat_data["current_role"],
                         "custom_degree": flat_data["degree"],
                         "custom_institution": flat_data["institution"],
+                        "custom_matched_by_ai": 1 if matched_job_id else 0,  # ✅ Track AI matching
+                        "custom_matching_confidence": "high"  # ✅ Optional: store confidence
                     })
                     
                     frappe.log_error(
@@ -146,18 +164,10 @@ def fetch_email_resumes():
                         message=f"Creating applicant for {applicant_name} with applicant {applicant}"
                     )
                     
-                    # return {"success": True, "applicant": applicant.as_dict()}
-
                     applicant.insert(ignore_permissions=True)
                     frappe.db.commit()
 
-                    # ✅ Optional: create Resume embeddings (NO Gemini)
-                    # create_resume_from_upload(
-                    #     applicant_data=applicant_data,
-                    #     file_url=f.file_url,
-                    #     applicant_doc=applicant
-                    # )
-                    
+                    # ✅ Create embeddings
                     try:
                         create_resume_from_upload(
                             applicant_data=applicant_data,
@@ -166,7 +176,7 @@ def fetch_email_resumes():
                         )
                     except Exception:
                         frappe.log_error(
-                            message=frappe.get_traceback(),   # ✅ REAL ERROR
+                            message=frappe.get_traceback(),
                             title=f"Resume Error: {applicant.name}"
                         )
 
@@ -175,10 +185,8 @@ def fetch_email_resumes():
                         title="Resume Processing Failed",
                         message=frappe.get_traceback()
                     )
-            frappe.log_error(
-                        title="Communication Processed",
-                        message=comm.name
-                    )
+            
+            # ✅ Mark communication as processed
             frappe.db.set_value("Communication", comm.name, "custom_processed", 1)
             frappe.db.commit()
 
