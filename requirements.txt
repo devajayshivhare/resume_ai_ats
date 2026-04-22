@@ -4,3 +4,4 @@ requests
 sentence-transformers
 faiss-cpu
 google-generativeai
+ollama>=0.3.0
