@@ -1,10 +1,9 @@
-# from resume_ai.api.resume.resume import match_job_opening_with_ai
 from resume.resume.doctype.pdf_upload.pdf_upload import _extract_and_parse_file
 from resume_ai.api.resume.resume import (
     calculate_experience_years,
     flatten_resume_data,
     create_resume_from_upload,
-    match_job_opening_with_ai
+    match_job_opening_hybrid
 )
 import os
 import json
@@ -19,12 +18,20 @@ def fetch_email_resumes():
         fields=["name", "job_title", "department", "description"]
     )
     
+    email_account = frappe.db.get_default("email_account")
+    if not email_account:
+        frappe.log_error(
+            title="Email Account Not Configured",
+            message="Please set the default email account in the system settings."
+        )
+        return
+    
     communications = frappe.get_all(
         "Communication",
         filters={
             "communication_type": "Communication",
             "sent_or_received": "Received",
-            "email_account": "Ajayshivhare047"
+            "email_account": email_account
         },
         fields=["name", "sender", "subject", "content"]  # ✅ Added content field
     )
@@ -65,11 +72,16 @@ def fetch_email_resumes():
                     # ✅ AI Match to Job Opening
                     matched_job_id = None
                     if active_job_openings:
-                        matched_job_id = match_job_opening_with_ai(
+                        matched_job_id = match_job_opening_hybrid(
                             email_subject=email_subject,
                             email_body=email_body,
                             job_openings=active_job_openings
                         )
+                        # matched_job_id = match_job_opening_with_ai(
+                        #     email_subject=email_subject,
+                        #     email_body=email_body,
+                        #     job_openings=active_job_openings
+                        # )
                         
                     frappe.log_error(
                         title="AI Job Matching",
@@ -143,7 +155,8 @@ def fetch_email_resumes():
                         "applicant_name": applicant_name,
                         "email_id": email_value,
                         # "job_applied_for": matched_job_id,  # ✅ Link to Job Opening
-                        "job_title": matched_job_id,  # ✅ Link to Job Opening
+                        # "job_title": matched_job_id,  # ✅ Link to Job Opening
+                        "job_title": matched_job_id.get("job_opening"),  # ✅ Link to Job Opening
                         "resume_attachment": f.file_url,
                         "status": "Open",
                         "phone_number": applicant_data.get("phone", ""),
@@ -155,8 +168,8 @@ def fetch_email_resumes():
                         "custom_current_role": flat_data["current_role"],
                         "custom_degree": flat_data["degree"],
                         "custom_institution": flat_data["institution"],
-                        "custom_matched_by_ai": 1 if matched_job_id else 0,  # ✅ Track AI matching
-                        "custom_matching_confidence": "high"  # ✅ Optional: store confidence
+                        # "custom_matched_by_ai": 1 if matched_job_id else 0,  # ✅ Track AI matching
+                        # "custom_matching_confidence": "high"  # ✅ Optional: store confidence
                     })
                     
                     frappe.log_error(

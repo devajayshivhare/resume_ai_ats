@@ -84,6 +84,7 @@ app_license = "mit"
 
 # before_install = "resume_ai.install.before_install"
 # after_install = "resume_ai.install.after_install"
+after_install = "resume_ai.setup.after_install"
 
 # Uninstallation
 # ------------
