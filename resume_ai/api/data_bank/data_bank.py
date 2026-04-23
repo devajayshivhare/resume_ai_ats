@@ -65,6 +65,7 @@
 import frappe
 import json
 
+
 @frappe.whitelist(allow_guest=True)
 def search_candidates(filters=None):
 
@@ -91,16 +92,109 @@ def search_candidates(filters=None):
         ["custom_experience_years", ">=", min_exp],
         ["custom_experience_years", "<=", max_exp]
     ]
+    
+    # 🔥 ADD THIS LINE HERE
+    or_filters = []
 
     # ✅ Role filter
     if filters.get("role"):
         db_filters.append(
             ["custom_current_role", "like", f"%{filters.get('role')}%"]
         )
-    if filters.get("degree"):
-        db_filters.append(
-            ["custom_degree", "like", f"%{filters.get('degree')}%"]
-        )
+    # if filters.get("degree"):
+    #     db_filters.append(
+    #         ["custom_degree", "like", f"%{filters.get('degree')}%"]
+    #     )
+    
+    # ✅ Degree filter (SMART + NORMALIZED)
+
+    import re
+
+    def normalize_degree(text):
+        if not text:
+            return ""
+
+        text = text.lower()
+
+        # remove dots, special chars
+        text = re.sub(r"[^\w\s]", " ", text)
+        text = re.sub(r"\s+", " ", text).strip()
+
+        return text
+
+
+    DEGREE_SYNONYMS = {
+    # 🔹 Engineering
+    "be": ["be", "b e", "b.e", "b.e.", "bachelor of engineering"],
+    "btech": ["btech", "b tech", "b.tech", "bachelor of technology"],
+    "me": ["me", "m e", "m.e", "master of engineering"],
+    "mtech": ["mtech", "m tech", "m.tech", "master of technology"],
+
+    # 🔹 Management
+    "mba": ["mba", "master of business administration"],
+    "pgdm": ["pgdm", "post graduate diploma in management"],
+
+    # 🔹 Commerce / Finance
+    "bcom": ["bcom", "b com", "b.com", "bachelor of commerce"],
+    "mcom": ["mcom", "m com", "m.com", "master of commerce"],
+    "ca": ["ca", "chartered accountant"],
+    "cs": ["cs", "company secretary"],
+    "cfa": ["cfa", "chartered financial analyst"],
+
+    # 🔹 IT / Computer
+    "bca": ["bca", "bachelor of computer application"],
+    "mca": ["mca", "master of computer application"],
+    "bsc_it": ["bsc it", "b.sc it", "bachelor of science in it"],
+    "msc_it": ["msc it", "m.sc it", "master of science in it"],
+
+    # 🔹 Science
+    "bsc": ["bsc", "b.sc", "bachelor of science"],
+    "msc": ["msc", "m.sc", "master of science"],
+
+    # 🔹 Arts
+    "ba": ["ba", "b.a", "bachelor of arts"],
+    "ma": ["ma", "m.a", "master of arts"],
+
+    # 🔹 Law
+    "llb": ["llb", "bachelor of law"],
+    "llm": ["llm", "master of law"],
+
+    # 🔹 Medical
+    "mbbs": ["mbbs", "bachelor of medicine"],
+    "bds": ["bds", "bachelor of dental surgery"],
+    "md": ["md", "doctor of medicine"],
+
+    # 🔹 Diploma
+    "diploma": ["diploma", "polytechnic diploma"],
+
+    # 🔹 PhD
+    "phd": ["phd", "doctor of philosophy"]
+}
+
+
+    degree_input = normalize_degree(filters.get("degree"))
+
+    if degree_input:
+        matched_terms = []
+
+        # find matching synonym group
+        for key, variants in DEGREE_SYNONYMS.items():
+            if degree_input in variants:
+                matched_terms = variants
+                break
+
+        # fallback → use tokens
+        if not matched_terms:
+            matched_terms = degree_input.split()
+
+        # apply OR filters
+        for term in matched_terms:
+            or_filters.append([
+                "custom_degree",
+                "like",
+                f"%{term}%"
+            ])
+    
     if filters.get("location"):
         db_filters.append(
             ["current_location", "like", f"%{filters.get('location')}%"]
@@ -113,11 +207,17 @@ def search_candidates(filters=None):
             db_filters.append(
                 ["custom_skills", "like", f"%{skill}%"]
             )
+            
+    if filters.get("applicant_name"):
+        db_filters.append(
+            ["applicant_name", "like", f"%{filters.get('applicant_name')}%"]
+        )
 
     return frappe.get_all(
         "Job Applicant",
         # "Resume",
         filters=db_filters,
+        or_filters=or_filters,
         fields=[
             "name",
             "applicant_name",
