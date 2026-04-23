@@ -103,7 +103,7 @@ def search_candidates(filters=None):
         )
     if filters.get("location"):
         db_filters.append(
-            ["custom_location", "like", f"%{filters.get('location')}%"]
+            ["current_location", "like", f"%{filters.get('location')}%"]
         )
 
     skills = filters.get("skills")
