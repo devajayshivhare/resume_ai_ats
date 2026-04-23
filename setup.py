@@ -3,21 +3,37 @@ import subprocess
 import shutil
 
 def after_install():
-    setup_defaults()
+    # setup_defaults()
+    set_site_config_defaults()                                          
     try_setup_ollama()
-    check_gemini_config()
+    check_gemini_config()               
 
 
-def setup_defaults():
-    # ✅ Default config
-    frappe.db.set_default("ai_mode", "hybrid")
-    frappe.db.set_default("ollama_model", "gemma4:e2b")
-    frappe.db.set_default("ollama_host", "http://localhost:11434")
-    frappe.db.set_default("email_account", "YOUR_EMAIL_ACCOUNT")  # <-- Set your default email account here
+# def setup_defaults():
+#     # ✅ Default config
+#     frappe.db.set_default("ai_mode", "hybrid")
+#     frappe.db.set_default("ollama_model", "gemma4:e2b")
+#     frappe.db.set_default("ollama_host", "http://localhost:11434")
+#     frappe.db.set_default("email_account", "YOUR_EMAIL_ACCOUNT")  # <-- Set your default email account here
 
-    frappe.db.commit()
+#     frappe.db.commit()
 
-    frappe.log_error("Setup", "Default AI config applied")
+#     frappe.log_error("Setup", "Default AI config applied")
+
+def set_site_config_defaults():
+    config_updates = {
+        "ai_mode": "hybrid",
+        "ollama_model": "gemma4:e2b",
+        "ollama_host": "http://localhost:11434",
+        "email_account": "YOUR_EMAIL_ACCOUNT"
+    }
+
+    for key, value in config_updates.items():
+        # Only set if not already present
+        if not frappe.conf.get(key):
+            frappe.utils.set_site_config(key, value)
+
+    frappe.log_error("Setup", "AI config added to site_config.json")
 
 def try_setup_ollama():
     """

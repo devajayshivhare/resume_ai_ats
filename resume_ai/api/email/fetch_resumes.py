@@ -18,7 +18,8 @@ def fetch_email_resumes():
         fields=["name", "job_title", "department", "description"]
     )
     
-    email_account = frappe.db.get_default("email_account")
+    # email_account = frappe.db.get_default("email_account")
+    email_account = frappe.conf.get("email_account")
     if not email_account:
         frappe.log_error(
             title="Email Account Not Configured",
@@ -32,6 +33,7 @@ def fetch_email_resumes():
             "communication_type": "Communication",
             "sent_or_received": "Received",
             "email_account": email_account
+            # "email_account": "Ajayshivhare047"
         },
         fields=["name", "sender", "subject", "content"]  # ✅ Added content field
     )
