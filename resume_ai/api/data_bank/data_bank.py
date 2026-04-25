@@ -128,6 +128,7 @@ def search_candidates(filters=None):
     "be": ["be", "b e", "b.e", "b.e.", "bachelor of engineering"],
     "btech": ["btech", "b tech", "b.tech", "bachelor of technology"],
     "me": ["me", "m e", "m.e", "master of engineering"],
+    # "me": ["me", "m e", "m.e"],
     "mtech": ["mtech", "m tech", "m.tech", "master of technology"],
 
     # 🔹 Management
@@ -213,7 +214,7 @@ def search_candidates(filters=None):
             ["applicant_name", "like", f"%{filters.get('applicant_name')}%"]
         )
 
-    return frappe.get_all(
+    records = frappe.get_all(
         "Job Applicant",
         # "Resume",
         filters=db_filters,
@@ -228,9 +229,44 @@ def search_candidates(filters=None):
             "resume_attachment",
             "custom_location",
             "current_location",
+            "email_id",
+            "phone_number",
+            "creation"   # ✅ IMPORTANT
         ],
-        order_by="modified desc"
+        # order_by="modified desc"
+        order_by="creation desc"
     )
+    
+    # ✅ GROUP BY email_id
+    grouped = {}
+
+    for r in records:
+        key = r.get("email_id") or r.get("phone_number") or r.get("name")
+
+        if key not in grouped:
+            grouped[key] = {
+                "name": r["name"],
+                "applicant_name": r["applicant_name"],
+                "custom_experience_years": r["custom_experience_years"],
+                "custom_skills": r["custom_skills"],
+                "custom_current_role": r["custom_current_role"],
+                "custom_degree": r["custom_degree"],
+                "current_location": r["current_location"],
+                "email_id": r["email_id"],
+                "phone_number": r["phone_number"],
+
+                # ✅ store ALL resumes
+                "resumes": []
+            }
+
+        grouped[key]["resumes"].append({
+            "resume_attachment": r["resume_attachment"],
+            "creation": r["creation"],
+            "name": r["name"]
+        })
+
+    # ✅ convert to list
+    return list(grouped.values())
 # @frappe.whitelist(allow_guest=True)
 # def search_candidates(filters=None):
 #     if isinstance(filters, str):
