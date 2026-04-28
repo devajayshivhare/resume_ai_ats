@@ -259,10 +259,24 @@ def search_candidates(filters=None):
                 "resumes": []
             }
 
+        # grouped[key]["resumes"].append({
+        #     "resume_attachment": r["resume_attachment"],
+        #     "creation": r["creation"],
+        #     "name": r["name"]
+        # })
+        import os
+
+        file_name = os.path.basename(r["resume_attachment"] or "")
+
+        # remove hash prefix safely (only first underscore)
+        parts = file_name.split("_", 1)
+        file_name = parts[1] if len(parts) > 1 else parts[0]
+
         grouped[key]["resumes"].append({
             "resume_attachment": r["resume_attachment"],
             "creation": r["creation"],
-            "name": r["name"]
+            "name": r["name"],
+            "file_name": file_name   # ✅ NEW FIELD
         })
 
     # ✅ convert to list
